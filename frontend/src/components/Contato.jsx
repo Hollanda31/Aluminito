@@ -123,7 +123,7 @@ export default function Contato() {
                                     Atendimento
                                 </span>
                                 <span className="mt-0.5 block font-display font-semibold text-white">
-                                    Seg a Sex · 07h30 às 17h30
+                                    Seg a Qui · 08:00 às 18:00 · Sex até as 17:00
                                 </span>
                             </span>
                         </div>
