@@ -36,6 +36,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-14: Duas fotos reais do usuário adicionadas à galeria (porta de alumínio branca → Portas; envidraçamento de sacada → Janelas), otimizadas para web em `public/projects/`.
 - 2026-07-14: Lightbox da galeria com navegação anterior/próxima dentro da categoria filtrada (setas, teclado ←/→, contador "n de m", ESC fecha).
 - 2026-07-14: Fotos reais reordenadas para posições 1 e 2 da galeria; foto da sacada envidraçada virou a capa (fundo do Hero).
+- 2026-07-14: Foto real de janela de correr em alumínio branco substituiu o placeholder "Janela panorâmica" (posição 4, categoria Janelas).
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

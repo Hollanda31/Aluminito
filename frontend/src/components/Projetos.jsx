@@ -16,7 +16,7 @@ const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
     { id: 2, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
     { id: 3, cat: "Portas", title: "Porta pivotante em vidro e alumínio", img: img("photo-1613544723301-176686aa9f09", 900), tall: true },
-    { id: 4, cat: "Janelas", title: "Janela panorâmica de alumínio", img: img("photo-1616877575565-6908da8619f5", 900) },
+    { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
     { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
     { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
     { id: 7, cat: "Portas", title: "Portas de correr integradas ao jardim", img: img("photo-1766603636700-e9d80473f40f", 900) },
