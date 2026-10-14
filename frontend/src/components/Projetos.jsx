@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
-import { waMessage } from "@/lib/site";
+import { waOrcamento } from "@/lib/site";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -131,9 +131,7 @@ export default function Projetos() {
                             </div>
                             <a
                                 data-testid="projetos-cta-whatsapp"
-                                href={waMessage(
-                                    "Olá! Vi o portfólio da Aluminito e quero um projeto parecido.",
-                                )}
+                                href={waOrcamento}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex shrink-0 items-center gap-3 rounded-full bg-azul px-7 py-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"

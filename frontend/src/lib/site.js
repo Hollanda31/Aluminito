@@ -11,7 +11,7 @@ export const MAPS_EMBED =
     "https://www.google.com/maps?q=R.+Vit%C3%B3ria,+488+-+Alterosas,+Serra+-+ES&output=embed";
 
 export const waOrcamento = waMessage(
-    "Olá! Vim pelo site da Aluminito e gostaria de solicitar um orçamento de esquadrias.",
+    "Olá! Vim pelo site da Aluminito e admirei o acabamento dos projetos de vocês. Gostaria de solicitar um orçamento de esquadrias de alumínio e vidros sob medida para o meu projeto. Podem me ajudar?",
 );
 
 const u = (id, w) =>
