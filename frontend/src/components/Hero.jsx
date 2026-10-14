@@ -49,7 +49,7 @@ export default function Hero() {
             <motion.div style={{ y: bgY, scale: bgScale }} className="absolute inset-0">
                 <img
                     src={IMAGES.hero}
-                    alt="Esquadria de vidro e alumínio de alto padrão"
+                    alt="Envidraçamento de sacada em vidro — projeto Aluminito"
                     className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-graphite/80 via-graphite/55 to-graphite" />

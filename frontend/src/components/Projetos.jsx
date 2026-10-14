@@ -13,16 +13,16 @@ const img = (id, w = 1000) =>
 const CATEGORIES = ["Todos", "Portas", "Janelas", "Fachadas", "Guarda-Corpo"];
 
 const PROJECTS = [
-    { id: 1, cat: "Portas", title: "Porta pivotante em vidro e alumínio", img: img("photo-1613544723301-176686aa9f09", 900), tall: true },
-    { id: 2, cat: "Janelas", title: "Janela panorâmica de alumínio", img: img("photo-1616877575565-6908da8619f5", 900) },
-    { id: 3, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
-    { id: 4, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
-    { id: 5, cat: "Portas", title: "Portas de correr integradas ao jardim", img: img("photo-1766603636700-e9d80473f40f", 900) },
-    { id: 6, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
-    { id: 7, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
-    { id: 8, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
-    { id: 9, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
-    { id: 10, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
+    { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
+    { id: 2, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
+    { id: 3, cat: "Portas", title: "Porta pivotante em vidro e alumínio", img: img("photo-1613544723301-176686aa9f09", 900), tall: true },
+    { id: 4, cat: "Janelas", title: "Janela panorâmica de alumínio", img: img("photo-1616877575565-6908da8619f5", 900) },
+    { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
+    { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
+    { id: 7, cat: "Portas", title: "Portas de correr integradas ao jardim", img: img("photo-1766603636700-e9d80473f40f", 900) },
+    { id: 8, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
+    { id: 9, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
+    { id: 10, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
 ];
 
 const slug = (c) => c.toLowerCase();

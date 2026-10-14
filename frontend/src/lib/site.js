@@ -18,7 +18,7 @@ const u = (id, w) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
 export const IMAGES = {
-    hero: u("photo-1556621266-45150d1e9f4b", 2400),
+    hero: "/projects/sacada-envidracada.jpg",
     sobreMain: u("photo-1780429483856-aefcf0ab9e26", 1600),
     sobreSecond: u("photo-1766603636700-e9d80473f40f", 1200),
 };
