@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const STATS = [
     { label: "Fabricação", value: "Própria" },
     { label: "Atendimento", value: "Serra · ES e Grande Vitória" },
-    { label: "Vidros", value: "Temperados e Laminados" },
+    { label: "Vidros", value: "Todos os Tipos" },
     { label: "Perfis", value: "Resistentes à Maresia" },
 ];
 

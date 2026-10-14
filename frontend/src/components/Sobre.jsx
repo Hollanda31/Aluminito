@@ -28,7 +28,7 @@ const DIFERENCIAIS = [
 const PILLS = [
     "Alumínio anodizado",
     "Pintura eletrostática",
-    "Vidros temperados e laminados",
+    "Todos os tipos de vidros",
 ];
 
 export default function Sobre() {
@@ -51,7 +51,7 @@ export default function Sobre() {
                             </h2>
                             <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg">
                                 A Aluminito fabrica e instala esquadrias de
-                                alumínio e vidros temperados e laminados sob
+                                alumínio e todos os tipos de vidros sob
                                 medida para residências e obras comerciais na
                                 região de Serra - ES e Grande Vitória. Do
                                 projeto à entrega, uma equipe própria cuida de

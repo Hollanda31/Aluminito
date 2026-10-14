@@ -30,7 +30,7 @@ const PRODUCTS = [
     {
         n: "04",
         title: "Guarda-Corpo em Alumínio e Vidro",
-        desc: "Segurança com transparência: guarda-corpos em vidro temperado e laminado com fixação em alumínio integrado.",
+        desc: "Segurança com transparência: guarda-corpos com todos os tipos de vidros e fixação em alumínio integrado.",
         img: img("photo-1617036958702-0cb93be0552b"),
         span: "lg:col-span-7",
     },
