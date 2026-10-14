@@ -1,0 +1,176 @@
+{
+  "brand_identity": {
+    "company_name": "Aluminito - Esquadrias de Alumínio e Vidros",
+    "location": "Serra - ES (Atendendo Grande Vitória)",
+    "address": "R. Vitória, 488 - Alterosas, Serra - ES, 29167-038",
+    "whatsapp_number": "(27) 99868-2220",
+    "whatsapp_link": "https://wa.me/5527998682220",
+    "instagram": "@aluminitoesquadrias",
+    "tagline": "Esquadrias de Alumínio e Vidros Sob Medida para o Seu Projeto",
+    "subheadline": "Qualidade, durabilidade e sofisticação para residências e obras comerciais. Transforme seu ambiente com acabamento de alto padrão.",
+    "emotional_archetype": "Architectural Craftsmanship & Precision Metalwork",
+    "tone": "Sophisticated, robust, modern architectural, premium finish, sea-salt resistant high-durability craftsmanship"
+  },
+  "color_palette": {
+    "primary_dark": "#0F172A",
+    "secondary_dark": "#1E293B",
+    "aluminum_brushed": "#CBD5E1",
+    "silver_accent": "#E2E8F0",
+    "light_gray_bg": "#F8FAFC",
+    "pure_white": "#FFFFFF",
+    "cta_primary_blue": "#0284C7",
+    "cta_hover_blue": "#0369A1",
+    "glass_tint_cyan": "rgba(2, 132, 199, 0.08)",
+    "border_metallic": "rgba(226, 232, 240, 0.2)",
+    "text_dark": "#0F172A",
+    "text_muted": "#64748B",
+    "text_light": "#F8FAFC",
+    "rules": {
+      "all_cta_buttons": "MUST use Azul Moderno (#0284C7) background with hover state #0369A1 and white text (#FFFFFF) across ALL CTAs, including floating & inline WhatsApp buttons.",
+      "contrast_compliance": "Ensure min 4.5:1 contrast ratio. On dark sections (#0F172A / #1E293B), use white text with metallic accents. On light sections (#F8FAFC / #FFFFFF), use #0F172A text."
+    }
+  },
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "Plus Jakarta Sans, sans-serif",
+    "hierarchy": {
+      "hero_h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight",
+      "section_h2": "text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-white",
+      "card_h3": "text-xl sm:text-2xl font-semibold tracking-normal text-slate-900 dark:text-white",
+      "body_text": "text-base sm:text-lg leading-relaxed text-slate-600 dark:text-slate-300",
+      "caption_overline": "text-xs uppercase tracking-[0.2em] font-semibold text-sky-600 dark:text-sky-400"
+    }
+  },
+  "layout_and_structure": {
+    "page_type": "Award-worthy Single Page Architectural Landing (Awwwards Style)",
+    "lenis_smooth_scroll": true,
+    "sections": [
+      {
+        "id": "header",
+        "name": "Header Fixado Glassmorphism",
+        "components": [
+          "Custom SVG Logo Mark 'Aluminito' (Geometric stylized A + aluminum frame / glass facet)",
+          "Desktop Navigation Links: Início (#hero), Sobre Nós (#sobre), Produtos & Serviços (#produtos), Projetos (#projetos), Depoimentos (#depoimentos), Contato (#contato)",
+          "Mobile Menu Toggle (Hamburger / Sheet)",
+          "Header CTA Button: 'Solicitar Orçamento' (Azul Moderno #0284C7)"
+        ]
+      },
+      {
+        "id": "hero",
+        "name": "Hero Cinematográfico & Cinético",
+        "components": [
+          "Masked line-by-line reveal animation on headline load",
+          "Headline: 'Esquadrias de Alumínio e Vidros Sob Medida para o Seu Projeto'",
+          "Subheadline: 'Qualidade, durabilidade e sofisticação para residências e obras comerciais. Transforme seu ambiente com acabamento de alto padrão.'",
+          "Hero CTA Button: 'Fazer Orçamento Gratuito via WhatsApp' (Azul Moderno #0284C7 with WhatsApp icon)",
+          "Background Carousel / Parallax Split View with high-res glass curtain wall and luxury aluminum doors",
+          "Quick Stats Bar (e.g. +10 Anos de Excelência, 100% Fabricação Própria, Atendimento Serra e Grande Vitória, Resistente à Maresia)"
+        ]
+      },
+      {
+        "id": "sobre",
+        "name": "Sobre A Aluminito & Diferenciais",
+        "components": [
+          "Apresentação Institucional (Empresa com fabricação própria e equipe técnica qualificada em Serra - ES atendendo Grande Vitória)",
+          "Grid de 4 Cards de Diferenciais: 1. Fabricação Sob Medida | 2. Alta Durabilidade & Resistência à Maresia | 3. Acabamento de Alto Padrão | 4. Pontualidade na Entrega",
+          "Badge de Qualidade Técnica e Certificação de Alumínio Anodizado/Pintura Eletrostática"
+        ]
+      },
+      {
+        "id": "produtos",
+        "name": "Produtos e Serviços de Alto Padrão",
+        "components": [
+          "Card Grid interativo com fotos de alta qualidade e detalhes técnicos:",
+          "1. Portas e Janelas de Alumínio (Linhas Gold e Supreme)",
+          "2. Portões e Portas Pivotantes de Alumínio",
+          "3. Fachadas Pele de Vidro / Structural Glazing",
+          "4. Guarda-Corpo em Alumínio e Vidro Temperado/Laminado",
+          "5. Coberturas e Envidraçamento de Sacada/Varanda (Reiki / Eurosystem)"
+        ]
+      },
+      {
+        "id": "projetos",
+        "name": "Galeria de Projetos Recentes (Portfolio)",
+        "components": [
+          "Filtro de Categorias interativo: Todos, Portas, Janelas, Fachadas, Guarda-Corpo",
+          "Grid Asimétrico estilo Bento com modal/lightbox ao clicar para ver imagens detalhadas",
+          "Banner CTA na galeria: 'Quer um projeto parecido? Fale no WhatsApp' (Azul Moderno #0284C7)"
+        ]
+      },
+      {
+        "id": "depoimentos",
+        "name": "Depoimentos de Clientes & Arquitetos",
+        "components": [
+          "Depoimentos de proprietários residenciais, arquitetos e engenheiros civis de Vitória, Vila Velha e Serra",
+          "Cards com avaliação 5 estrelas, foto/avatar do cliente, nome e localização do projeto"
+        ]
+      },
+      {
+        "id": "contato",
+        "name": "CTA Intermediário & Formulário Direto para WhatsApp",
+        "components": [
+          "Título: 'Tem um projeto de arquitetura ou reforma em mãos?'",
+          "Formulário Interativo: Nome, Telefone/WhatsApp, Cidade (Serra, Vitória, Vila Velha, Cariacica, Viana), Tipo de Projeto (Portas/Janelas, Pele de Vidro, Guarda-corpo, Envidraçamento de Varanda, Outros)",
+          "Botão de Envio: 'Enviar Projeto pelo WhatsApp' (Azul Moderno #0284C7 - gera wa.me link pré-preenchido)",
+          "Indicadores de Contato Direto: Telefone/WhatsApp (27) 99868-2220, E-mail, Atendimento Presencial com Agendamento"
+        ]
+      },
+      {
+        "id": "footer",
+        "name": "Rodapé Institucional & Mapa",
+        "components": [
+          "Endereço Completo: R. Vitória, 488 - Alterosas, Serra - ES, 29167-038",
+          "Instagram: @aluminitoesquadrias | WhatsApp: (27) 99868-2220",
+          "Horário de Atendimento: Segunda a Sexta: 07:30 às 17:30",
+          "Google Maps Integrado / Interativo",
+          "Copyright © 2026 Aluminito Esquadrias de Alumínio. Todos os direitos reservados."
+        ]
+      },
+      {
+        "id": "floating_whatsapp",
+        "name": "Botão Flutuante de WhatsApp",
+        "components": [
+          "Botão fixo no canto inferior direito com pulso discreto e tooltip 'Fale Conosco no WhatsApp'",
+          "Cor do botão: Azul Moderno #0284C7 conforme especificado pelo usuário"
+        ]
+      }
+    ]
+  },
+  "image_urls": {
+    "hero_glazing_facade": "https://images.unsplash.com/photo-1556621266-45150d1e9f4b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmFsJTIwZ2xhc3MlMjBmYWNhZGUlMjBsdXh1cnklMjBob3VzZSUyMGFsdW1pbnVtJTIwZnJhbWUlMjBkb29yJTIwY3VydGFpbiUyMHdhbGwlMjBiYWxjb255JTIwZ2xhc3N8ZW58MHx8fHwxNzkyMDE2MjMyfDA&ixlib=rb-4.1.0&q=85",
+    "hero_interior_glass_sliding": "https://images.unsplash.com/photo-1694990600401-dac57c87ed45?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmFsJTIwZ2xhc3MlMjBmYWNhZGUlMjBsdXh1cnklMjBob3VzZSUyMGFsdW1pbnVtJTIwZnJhbWUlMjBkb29yJTIwY3VydGFpbiUyMHdhbGwlMjBiYWxjb255JTIwZ2xhc3N8ZW58MHx8fHwxNzkyMDE2MjMyfDA&ixlib=rb-4.1.0&q=85",
+    "hero_glass_building_sky": "https://images.unsplash.com/photo-1691161651055-0ba310da7bc8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmFsJTIwZ2xhc3MlMjBmYWNhZGUlMjBsdXh1cnklMjBob3VzZSUyMGFsdW1pbnVtJTIwZnJhbWUlMjBkb29yJTIwY3VydGFpbiUyMHdhbGwlMjBiYWxjb255JTIwZ2xhc3N8ZW58MHx8fHwxNzkyMDE2MjMyfDA&ixlib=rb-4.1.0&q=85",
+    "geometric_facade_curtain_wall": "https://images.unsplash.com/photo-1777005800224-a4620d4a2958?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmFsJTIwZ2xhc3MlMjBmYWNhZGUlMjBsdXh1cnklMjBob3VzZSUyMGFsdW1pbnVtJTIwZnJhbWUlMjBkb29yJTIwY3VydGFpbiUyMHdhbGwlMjBiYWxjb255JTIwZ2xhc3N8ZW58MHx8fHwxNzkyMDE2MjMyfDA&ixlib=rb-4.1.0&q=85"
+  },
+  "interactive_motion_rules": {
+    "libraries": ["framer-motion", "lucide-react"],
+    "animations": [
+      "Smooth header glass opacity transition on scroll",
+      "Masked line reveal for hero text",
+      "Filter tab animation for gallery with layout transitions",
+      "Hover scale-105 & metallic shimmer borders on product cards",
+      "Staggered reveal for differential cards and testimonials"
+    ]
+  },
+  "testing_attributes": {
+    "mandatory": "All interactive elements, buttons, inputs, filter tabs, modal triggers, links, and text containers MUST have unique kebab-case data-testid attributes.",
+    "examples": [
+      "data-testid=\"header-logo\"",
+      "data-testid=\"header-nav-sobre\"",
+      "data-testid=\"header-cta-orcamento\"",
+      "data-testid=\"hero-whatsapp-button\"",
+      "data-testid=\"filter-tab-portas\"",
+      "data-testid=\"contact-form-submit-button\"",
+      "data-testid=\"floating-whatsapp-button\""
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Create a clean React architecture in /src/ using .js files.",
+    "Ensure 100% adherence to Portuguese (Brazil) language for all texts and copy.",
+    "Implement the explicit color palette: Dark #0F172A / #1E293B, Metallic Silver #CBD5E1 / #E2E8F0, Light Gray #F8FAFC, and Azul Moderno #0284C7 for ALL CTAs and WhatsApp buttons.",
+    "Ensure all buttons (hero CTA, navbar CTA, contact form submit, gallery CTA, floating button) use #0284C7.",
+    "Add responsive navigation and a full interactive WhatsApp lead generator form that constructs pre-filled WhatsApp message URLs to wa.me/5527998682220.",
+    "Include Google Maps iframe for location R. Vitória, 488 - Alterosas, Serra - ES.",
+    "Make sure data-testid attributes are present on every key element."
+  ]
+}
