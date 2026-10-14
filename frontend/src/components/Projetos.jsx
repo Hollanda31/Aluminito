@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waOrcamento } from "@/lib/site";
@@ -21,6 +21,8 @@ const PROJECTS = [
     { id: 6, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
     { id: 7, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
     { id: 8, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
+    { id: 9, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
+    { id: 10, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
 ];
 
 const slug = (c) => c.toLowerCase();
@@ -29,14 +31,31 @@ export default function Projetos() {
     const [cat, setCat] = useState("Todos");
     const [lightbox, setLightbox] = useState(null);
 
-    useEffect(() => {
-        const onKey = (e) => e.key === "Escape" && setLightbox(null);
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, []);
-
     const filtered =
         cat === "Todos" ? PROJECTS : PROJECTS.filter((p) => p.cat === cat);
+
+    const currentIndex = lightbox
+        ? filtered.findIndex((p) => p.id === lightbox.id)
+        : -1;
+
+    const navigate = (dir) => {
+        if (!lightbox || filtered.length < 2) return;
+        const next =
+            filtered[(currentIndex + dir + filtered.length) % filtered.length];
+        if (next) setLightbox(next);
+    };
+
+    useEffect(() => {
+        if (!lightbox) return;
+        const onKey = (e) => {
+            if (e.key === "Escape") setLightbox(null);
+            if (e.key === "ArrowRight") navigate(1);
+            if (e.key === "ArrowLeft") navigate(-1);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lightbox, cat]);
 
     return (
         <section id="projetos" data-testid="projetos-section" className="bg-white py-24 sm:py-32">
@@ -162,15 +181,49 @@ export default function Projetos() {
                             className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <img
+                            <motion.img
+                                key={lightbox.id}
+                                initial={{ opacity: 0, scale: 0.985 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.3, ease: EASE }}
                                 src={lightbox.img}
                                 alt={lightbox.title}
-                                className="max-h-[80vh] w-full object-contain bg-graphite2"
+                                className="max-h-[80vh] w-full bg-graphite2 object-contain"
                             />
+                            {filtered.length > 1 && (
+                                <>
+                                    <button
+                                        data-testid="lightbox-prev-button"
+                                        onClick={() => navigate(-1)}
+                                        aria-label="Imagem anterior"
+                                        className="absolute left-3 top-[42%] grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-graphite/70 text-white backdrop-blur transition-colors duration-200 hover:bg-azul"
+                                    >
+                                        <ChevronLeft size={22} />
+                                    </button>
+                                    <button
+                                        data-testid="lightbox-next-button"
+                                        onClick={() => navigate(1)}
+                                        aria-label="Próxima imagem"
+                                        className="absolute right-3 top-[42%] grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-graphite/70 text-white backdrop-blur transition-colors duration-200 hover:bg-azul"
+                                    >
+                                        <ChevronRight size={22} />
+                                    </button>
+                                </>
+                            )}
                             <div className="flex items-center justify-between bg-graphite px-6 py-4">
-                                <p className="font-display text-sm font-semibold text-white sm:text-base">
-                                    {lightbox.title}
-                                </p>
+                                <div>
+                                    <p className="font-display text-sm font-semibold text-white sm:text-base">
+                                        {lightbox.title}
+                                    </p>
+                                    {filtered.length > 1 && currentIndex >= 0 && (
+                                        <p
+                                            data-testid="lightbox-counter"
+                                            className="mt-0.5 text-[11px] font-medium text-silver/50"
+                                        >
+                                            {currentIndex + 1} de {filtered.length}
+                                        </p>
+                                    )}
+                                </div>
                                 <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300">
                                     {lightbox.cat}
                                 </span>

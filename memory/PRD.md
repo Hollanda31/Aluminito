@@ -32,6 +32,9 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 ## Implementado
 - 2026-07-14: Landing page completa — hero cinético com reveal linha-a-linha + parallax, marquee editorial, Sobre com 4 diferenciais, Produtos em bento grid (5 cards → WhatsApp), Galeria com filtros + lightbox, Depoimentos (3), CTA + formulário → WhatsApp pré-preenchido (validado: popup abre wa.me/5527998682220 com todos os campos), rodapé com Google Maps, botão flutuante WhatsApp, Lenis + framer-motion, scroll-reveal em todas as seções, sem overflow horizontal (testado 1440px e 390px).
 - 2026-07-14: Logo oficial do usuário aplicado em header, footer e favicon.
+- 2026-07-14: Mensagem padrão do WhatsApp refinada ("...admirei o acabamento dos projetos de vocês...") aplicada a Hero, header, flutuante e banner da galeria.
+- 2026-07-14: Duas fotos reais do usuário adicionadas à galeria (porta de alumínio branca → Portas; envidraçamento de sacada → Janelas), otimizadas para web em `public/projects/`.
+- 2026-07-14: Lightbox da galeria com navegação anterior/próxima dentro da categoria filtrada (setas, teclado ←/→, contador "n de m", ESC fecha).
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito
