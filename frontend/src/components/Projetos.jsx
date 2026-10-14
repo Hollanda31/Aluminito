@@ -19,7 +19,7 @@ const PROJECTS = [
     { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
     { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
     { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
-    { id: 7, cat: "Portas", title: "Portas de correr integradas ao jardim", img: img("photo-1766603636700-e9d80473f40f", 900) },
+    { id: 7, cat: "Portas", title: "Portão de correr em alumínio branco", img: "/projects/portao-correr-branco.jpg" },
     { id: 8, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
     { id: 9, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
     { id: 10, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
