@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Fachadas", "Divisórias", "Guarda-Corpo"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias"];
 
 const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
@@ -64,9 +64,6 @@ const PROJECTS = [
             "/projects/portao-correr-branco-3.jpg",
         ],
     },
-    { id: 8, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
-    { id: 9, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
-    { id: 10, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
 ];
 
 const slug = (c) =>
