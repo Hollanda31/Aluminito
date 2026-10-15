@@ -10,9 +10,9 @@ export default function Logo() {
         >
             <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-white p-1 ring-1 ring-black/5 shadow-sm transition-shadow duration-300 group-hover:shadow-azul/30">
                 <img
-                    src="/logo-aluminito.png"
+                    src="/logo-aluminito.jpg"
                     alt="Aluminito Esquadrias"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full rounded-lg object-cover object-[55%_30%]"
                 />
             </span>
             <span className="text-left leading-none">
