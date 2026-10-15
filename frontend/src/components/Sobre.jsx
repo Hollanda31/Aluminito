@@ -85,17 +85,6 @@ export default function Sobre() {
                                     className="h-[320px] w-full object-cover transition-transform duration-700 hover:scale-[1.03] sm:h-[460px]"
                                 />
                             </div>
-                            <div
-                                data-testid="sobre-image-second"
-                                className="absolute -bottom-10 left-6 hidden w-60 overflow-hidden rounded-2xl border-8 border-mist shadow-2xl sm:block lg:-left-6 lg:w-72"
-                            >
-                                <img
-                                    src={IMAGES.sobreSecond}
-                                    alt="Residência com esquadrias de alumínio sob medida"
-                                    loading="lazy"
-                                    className="h-44 w-full object-cover lg:h-48"
-                                />
-                            </div>
                         </Reveal>
                     </div>
                 </div>
