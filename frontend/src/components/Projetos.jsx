@@ -13,8 +13,6 @@ const img = (id, w = 1000) =>
 const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro"];
 
 const PROJECTS = [
-    { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
-    { id: 2, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
     {
         id: 3,
         cat: "Portas",
@@ -68,13 +66,13 @@ const PROJECTS = [
         id: 11,
         cat: "Banheiro",
         title: "Box de vidro e espelho sob medida",
-        img: "/projects/banheiro-3.jpg",
+        img: "/projects/banheiro-1.jpg",
         imgs: [
-            "/projects/banheiro-3.jpg",
+            "/projects/banheiro-1.jpg",
             "/projects/banheiro-4.jpg",
             "/projects/banheiro-5.jpg",
             "/projects/banheiro-2.jpg",
-            "/projects/banheiro-1.jpg",
+            "/projects/banheiro-3.jpg",
         ],
     },
 ];
