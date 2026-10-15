@@ -41,7 +41,18 @@ const PROJECTS = [
             "/projects/divisoria-corporativa-2.jpg",
         ],
     },
-    { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
+    {
+        id: 6,
+        cat: "Portas",
+        title: "Porta de correr em duas folhas",
+        img: "/projects/porta-duas-folhas-1.jpg",
+        imgs: [
+            "/projects/porta-duas-folhas-1.jpg",
+            "/projects/porta-duas-folhas-2.jpg",
+            "/projects/porta-duas-folhas-3.jpg",
+            "/projects/porta-duas-folhas-4.jpg",
+        ],
+    },
     {
         id: 7,
         cat: "Portas",
