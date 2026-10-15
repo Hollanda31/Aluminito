@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Janelas", "Fachadas", "Divisórias", "Guarda-Corpo"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Fachadas", "Divisórias", "Guarda-Corpo"];
 
 const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
@@ -55,7 +55,7 @@ const PROJECTS = [
     },
     {
         id: 7,
-        cat: "Portas",
+        cat: "Portão de Garagem",
         title: "Portão de correr em alumínio branco",
         img: "/projects/portao-correr-branco.jpg",
         imgs: [
@@ -70,7 +70,10 @@ const PROJECTS = [
 ];
 
 const slug = (c) =>
-    c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    c.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-");
 const photosOf = (p) => (p.imgs ? p.imgs : [p.img]);
 
 export default function Projetos() {
