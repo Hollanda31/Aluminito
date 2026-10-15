@@ -39,6 +39,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-14: Foto real de janela de correr em alumínio branco substituiu o placeholder "Janela panorâmica" (posição 4, categoria Janelas).
 - 2026-07-14: Foto real de portão de correr em alumínio branco substituiu o placeholder "Portas de correr integradas ao jardim" (posição 7, categoria Portas).
 - 2026-07-14: Galeria com suporte a múltiplos ângulos por projeto — o portão de correr tem 3 fotos agrupadas; selo "N fotos" no card, setas e pontos navegáveis no zoom, contador achatado "n de m" por categoria.
+- 2026-07-14: 5 fotos reais de porta de correr comercial (restaurante) agrupadas substituindo o placeholder "Porta pivotante" (posição 3, categoria Portas).
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

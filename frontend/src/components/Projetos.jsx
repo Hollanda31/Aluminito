@@ -15,7 +15,20 @@ const CATEGORIES = ["Todos", "Portas", "Janelas", "Fachadas", "Guarda-Corpo"];
 const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
     { id: 2, cat: "Janelas", title: "Envidraçamento de sacada em vidro", img: "/projects/sacada-envidracada.jpg" },
-    { id: 3, cat: "Portas", title: "Porta pivotante em vidro e alumínio", img: img("photo-1613544723301-176686aa9f09", 900), tall: true },
+    {
+        id: 3,
+        cat: "Portas",
+        title: "Porta de correr comercial em alumínio",
+        img: "/projects/porta-comercial-4.jpg",
+        tall: true,
+        imgs: [
+            "/projects/porta-comercial-1.jpg",
+            "/projects/porta-comercial-2.jpg",
+            "/projects/porta-comercial-3.jpg",
+            "/projects/porta-comercial-4.jpg",
+            "/projects/porta-comercial-5.jpg",
+        ],
+    },
     { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
     { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
     { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
