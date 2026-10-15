@@ -19,17 +19,29 @@ const PROJECTS = [
     { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
     { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
     { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
-    { id: 7, cat: "Portas", title: "Portão de correr em alumínio branco", img: "/projects/portao-correr-branco.jpg" },
+    {
+        id: 7,
+        cat: "Portas",
+        title: "Portão de correr em alumínio branco",
+        img: "/projects/portao-correr-branco.jpg",
+        imgs: [
+            "/projects/portao-correr-branco.jpg",
+            "/projects/portao-correr-branco-2.jpg",
+            "/projects/portao-correr-branco-3.jpg",
+        ],
+    },
     { id: 8, cat: "Janelas", title: "Esquadrias panorâmicas residenciais", img: img("photo-1775116483675-a592e6e02807", 900) },
     { id: 9, cat: "Fachadas", title: "Fachada em vidro e alumínio", img: img("photo-1523477593243-78bbf626fd3b", 900) },
     { id: 10, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
 ];
 
 const slug = (c) => c.toLowerCase();
+const photosOf = (p) => (p.imgs ? p.imgs : [p.img]);
 
 export default function Projetos() {
     const [cat, setCat] = useState("Todos");
     const [lightbox, setLightbox] = useState(null);
+    const [angle, setAngle] = useState(0);
 
     const filtered =
         cat === "Todos" ? PROJECTS : PROJECTS.filter((p) => p.cat === cat);
@@ -38,11 +50,35 @@ export default function Projetos() {
         ? filtered.findIndex((p) => p.id === lightbox.id)
         : -1;
 
+    const photos = lightbox ? photosOf(lightbox) : [];
+
+    const totalSlides = filtered.reduce((acc, p) => acc + photosOf(p).length, 0);
+    const slidePos =
+        currentIndex >= 0
+            ? filtered
+                  .slice(0, currentIndex)
+                  .reduce((acc, p) => acc + photosOf(p).length, 0) +
+              angle +
+              1
+            : 0;
+
+    const openProject = (p) => {
+        setLightbox(p);
+        setAngle(0);
+    };
+
     const navigate = (dir) => {
-        if (!lightbox || filtered.length < 2) return;
-        const next =
+        if (!lightbox) return;
+        const nextAngle = angle + dir;
+        if (nextAngle >= 0 && nextAngle < photos.length) {
+            setAngle(nextAngle);
+            return;
+        }
+        const nextProject =
             filtered[(currentIndex + dir + filtered.length) % filtered.length];
-        if (next) setLightbox(next);
+        if (!nextProject) return;
+        setLightbox(nextProject);
+        setAngle(dir === 1 ? 0 : photosOf(nextProject).length - 1);
     };
 
     useEffect(() => {
@@ -55,7 +91,7 @@ export default function Projetos() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lightbox, cat]);
+    }, [lightbox, angle, cat]);
 
     return (
         <section id="projetos" data-testid="projetos-section" className="bg-white py-24 sm:py-32">
@@ -106,7 +142,7 @@ export default function Projetos() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.94 }}
                                 transition={{ duration: 0.4, ease: EASE }}
-                                onClick={() => setLightbox(p)}
+                                onClick={() => openProject(p)}
                                 data-testid={`projeto-item-${p.id}`}
                                 className={`group relative overflow-hidden rounded-2xl text-left ${
                                     p.tall ? "sm:row-span-2" : ""
@@ -118,6 +154,14 @@ export default function Projetos() {
                                     loading="lazy"
                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 />
+                                {p.imgs && (
+                                    <span
+                                        data-testid={`projeto-item-${p.id}-badge`}
+                                        className="absolute right-3 top-3 rounded-full border border-white/20 bg-graphite/70 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur"
+                                    >
+                                        {p.imgs.length} fotos
+                                    </span>
+                                )}
                                 <div className="absolute bottom-0 left-0 p-5">
                                     <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300 [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
                                         {p.cat}
@@ -181,15 +225,15 @@ export default function Projetos() {
                             onClick={(e) => e.stopPropagation()}
                         >
                             <motion.img
-                                key={lightbox.id}
+                                key={`${lightbox.id}-${angle}`}
                                 initial={{ opacity: 0, scale: 0.985 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ duration: 0.3, ease: EASE }}
-                                src={lightbox.img}
-                                alt={lightbox.title}
+                                src={photos[angle]}
+                                alt={`${lightbox.title} — ângulo ${angle + 1}`}
                                 className="max-h-[80vh] w-full bg-graphite2 object-contain"
                             />
-                            {filtered.length > 1 && (
+                            {totalSlides > 1 && (
                                 <>
                                     <button
                                         data-testid="lightbox-prev-button"
@@ -209,21 +253,38 @@ export default function Projetos() {
                                     </button>
                                 </>
                             )}
-                            <div className="flex items-center justify-between bg-graphite px-6 py-4">
+                            <div className="flex items-center justify-between gap-4 bg-graphite px-6 py-4">
                                 <div>
                                     <p className="font-display text-sm font-semibold text-white sm:text-base">
                                         {lightbox.title}
                                     </p>
-                                    {filtered.length > 1 && currentIndex >= 0 && (
+                                    {totalSlides > 1 && currentIndex >= 0 && (
                                         <p
                                             data-testid="lightbox-counter"
                                             className="mt-0.5 text-[11px] font-medium text-silver/50"
                                         >
-                                            {currentIndex + 1} de {filtered.length}
+                                            {slidePos} de {totalSlides}
                                         </p>
                                     )}
+                                    {photos.length > 1 && (
+                                        <div className="mt-2 flex gap-1.5">
+                                            {photos.map((_, i) => (
+                                                <button
+                                                    key={i}
+                                                    data-testid={`lightbox-angle-${i}`}
+                                                    onClick={() => setAngle(i)}
+                                                    aria-label={`Ver ângulo ${i + 1}`}
+                                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                                        i === angle
+                                                            ? "w-6 bg-azul"
+                                                            : "w-1.5 bg-white/30 hover:bg-white/60"
+                                                    }`}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300">
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300">
                                     {lightbox.cat}
                                 </span>
                             </div>
