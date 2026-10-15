@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, History } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
 import { IMAGES, waOrcamento } from "@/lib/site";
@@ -8,8 +8,6 @@ import { IMAGES, waOrcamento } from "@/lib/site";
 const EASE = [0.16, 1, 0.3, 1];
 
 const SLIDES = [
-    IMAGES.hero,
-    "/hero/historia-1.jpg",
     "/hero/historia-2.jpg",
     "/hero/historia-3.jpg",
     "/hero/historia-4.jpg",
@@ -147,11 +145,24 @@ export default function Hero() {
                 </motion.div>
 
                 <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.25, duration: 0.8, ease: EASE }}
+                    data-testid="hero-acervo-badge"
+                    className="mt-8 inline-flex w-fit items-center gap-2.5 rounded-full border border-white/15 bg-black/40 px-4 py-2 backdrop-blur"
+                >
+                    <History size={14} className="text-azul" />
+                    <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/85">
+                        Acervo histórico · Há mais de 40 anos no ramo
+                    </span>
+                </motion.div>
+
+                <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.3, duration: 0.8 }}
                     data-testid="hero-slide-dots"
-                    className="mt-8 flex items-center gap-2"
+                    className="mt-4 flex items-center gap-2"
                 >
                     {SLIDES.map((_, i) => (
                         <button
