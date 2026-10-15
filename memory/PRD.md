@@ -45,6 +45,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-14: Portão de correr branco movido da categoria Portas para a nova categoria "Portão de Garagem" (filtro próprio criado).
 - 2026-07-15: Paleta do site alterada para a identidade do logo: vermelho #FF0000 (todos os CTAs/acentos), preto #000000/#111111 (fundos escuros), cinza #808080 (textos secundários) e branco #FFFFFF/#F5F5F5 (fundos claros). Tokens em tailwind.config.js (graphite, graphite2, silver, silverlight, mist, azul) — troca em cascata.
 - 2026-07-15: Stat do Hero "Atendimento" alterado para "Todo o Brasil"; imagem secundária (sobreposta) da seção Sobre removida.
+- 2026-07-15: Fundo do Hero virou carrossel com 5 fotos (capa da sacada + 4 fotos históricas da fábrica em `public/hero/`), crossfade de 1,4s a cada 5,5s, zoom Ken Burns sutil e pontos de navegação clicáveis.
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

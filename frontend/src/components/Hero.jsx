@@ -1,11 +1,19 @@
-import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { ArrowDown } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
 import { IMAGES, waOrcamento } from "@/lib/site";
 
 const EASE = [0.16, 1, 0.3, 1];
+
+const SLIDES = [
+    IMAGES.hero,
+    "/hero/historia-1.jpg",
+    "/hero/historia-2.jpg",
+    "/hero/historia-3.jpg",
+    "/hero/historia-4.jpg",
+];
 
 const STATS = [
     { label: "Fabricação", value: "Própria" },
@@ -39,6 +47,16 @@ export default function Hero() {
     const bgScale = useTransform(scrollYProgress, [0, 1], [1.05, 1.18]);
     const fade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
+    const [slide, setSlide] = useState(0);
+
+    useEffect(() => {
+        const t = setInterval(
+            () => setSlide((s) => (s + 1) % SLIDES.length),
+            5500,
+        );
+        return () => clearInterval(t);
+    }, []);
+
     return (
         <section
             id="inicio"
@@ -47,11 +65,22 @@ export default function Hero() {
             className="relative flex min-h-screen flex-col overflow-hidden bg-graphite"
         >
             <motion.div style={{ y: bgY, scale: bgScale }} className="absolute inset-0">
-                <img
-                    src={IMAGES.hero}
-                    alt="Envidraçamento de sacada em vidro — projeto Aluminito"
-                    className="h-full w-full object-cover"
-                />
+                <AnimatePresence>
+                    <motion.img
+                        key={slide}
+                        data-testid="hero-bg-slide"
+                        src={SLIDES[slide]}
+                        alt="Aluminito — projetos e história em esquadrias"
+                        initial={{ opacity: 0, scale: 1 }}
+                        animate={{ opacity: 1, scale: 1.06 }}
+                        exit={{ opacity: 0 }}
+                        transition={{
+                            opacity: { duration: 1.4, ease: "easeInOut" },
+                            scale: { duration: 6.5, ease: "linear" },
+                        }}
+                        className="absolute inset-0 h-full w-full object-cover"
+                    />
+                </AnimatePresence>
                 <div className="absolute inset-0 bg-gradient-to-b from-graphite/80 via-graphite/55 to-graphite" />
                 <div className="absolute inset-0 bg-gradient-to-r from-graphite/85 via-graphite/40 to-transparent" />
             </motion.div>
@@ -115,6 +144,28 @@ export default function Hero() {
                         Ver Projetos
                         <ArrowDown size={18} />
                     </button>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.3, duration: 0.8 }}
+                    data-testid="hero-slide-dots"
+                    className="mt-8 flex items-center gap-2"
+                >
+                    {SLIDES.map((_, i) => (
+                        <button
+                            key={i}
+                            data-testid={`hero-slide-dot-${i}`}
+                            onClick={() => setSlide(i)}
+                            aria-label={`Foto ${i + 1} de ${SLIDES.length}`}
+                            className={`h-1.5 rounded-full transition-all duration-500 ${
+                                i === slide
+                                    ? "w-7 bg-azul"
+                                    : "w-1.5 bg-white/30 hover:bg-white/60"
+                            }`}
+                        />
+                    ))}
                 </motion.div>
             </motion.div>
 
