@@ -41,7 +41,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-14: Galeria com suporte a múltiplos ângulos por projeto — o portão de correr tem 3 fotos agrupadas; selo "N fotos" no card, setas e pontos navegáveis no zoom, contador achatado "n de m" por categoria.
 - 2026-07-14: 5 fotos reais de porta de giro comercial (restaurante) agrupadas substituindo o placeholder "Porta pivotante" (posição 3, categoria Portas); título "Porta de Giro comercial em Alumínio".
 - 2026-07-14: "Pele de vidro comercial" substituída por "Divisória corporativa em vidro" (2 ângulos reais, posição 5); nova categoria de filtro "Divisórias" criada.
-- 2026-07-14: "Guarda-corpo em vidro à beira-mar" substituído por "Porta de correr em duas folhas" (4 ângulos reais, posição 6, categoria Portas).
+- 2026-07-14: "Guarda-corpo em vidro à beira-mar" substituído por "Porta de correr em duas folhas" (4 ângulos reais, posição 6, categoria Portas); rotação das 4 fotos corrigida 90° horário (originais webp sem EXIF, gravadas de lado).
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito
