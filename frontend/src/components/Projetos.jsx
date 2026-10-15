@@ -201,7 +201,7 @@ export default function Projetos() {
                                     </span>
                                 )}
                                 <div className="absolute bottom-0 left-0 p-5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300 [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
+                                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-azul [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
                                         {p.cat}
                                     </span>
                                     <p className="mt-1 font-display text-base font-semibold text-white [text-shadow:0_1px_10px_rgba(15,23,42,0.9)]">
@@ -322,7 +322,7 @@ export default function Projetos() {
                                         </div>
                                     )}
                                 </div>
-                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-300">
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.22em] text-azul">
                                     {lightbox.cat}
                                 </span>
                             </div>

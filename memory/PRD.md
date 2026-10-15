@@ -43,6 +43,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-14: "Pele de vidro comercial" substituída por "Divisória corporativa em vidro" (2 ângulos reais, posição 5); nova categoria de filtro "Divisórias" criada.
 - 2026-07-14: "Guarda-corpo em vidro à beira-mar" substituído por "Porta de correr em duas folhas" (4 ângulos reais, posição 6, categoria Portas); rotação das 4 fotos corrigida 90° horário (originais webp sem EXIF, gravadas de lado).
 - 2026-07-14: Portão de correr branco movido da categoria Portas para a nova categoria "Portão de Garagem" (filtro próprio criado).
+- 2026-07-15: Paleta do site alterada para a identidade do logo: vermelho #FF0000 (todos os CTAs/acentos), preto #000000/#111111 (fundos escuros), cinza #808080 (textos secundários) e branco #FFFFFF/#F5F5F5 (fundos claros). Tokens em tailwind.config.js (graphite, graphite2, silver, silverlight, mist, azul) — troca em cascata.
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

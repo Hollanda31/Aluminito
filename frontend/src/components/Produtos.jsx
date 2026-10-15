@@ -54,7 +54,7 @@ export default function Produtos() {
             <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
                 <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                     <Reveal>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-400">
+                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-azul">
                             Produtos & Serviços
                         </p>
                         <h2 className="mt-4 max-w-2xl font-display text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
@@ -85,7 +85,7 @@ export default function Produtos() {
                                 )}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="group relative block h-72 overflow-hidden rounded-3xl border border-white/10 transition-colors duration-300 hover:border-sky-400/40 lg:h-80"
+                                className="group relative block h-72 overflow-hidden rounded-3xl border border-white/10 transition-colors duration-300 hover:border-azul/50 lg:h-80"
                             >
                                 <img
                                     src={p.img}
@@ -96,7 +96,7 @@ export default function Produtos() {
                                 <div className="absolute inset-0 bg-gradient-to-t from-graphite via-graphite/35 to-transparent" />
                                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-6 p-7 sm:p-8">
                                     <div>
-                                        <span className="font-display text-sm font-semibold tracking-[0.2em] text-sky-400">
+                                        <span className="font-display text-sm font-semibold tracking-[0.2em] text-azul">
                                             {p.n}
                                         </span>
                                         <h3 className="mt-2 max-w-md font-display text-xl font-semibold text-white sm:text-2xl">

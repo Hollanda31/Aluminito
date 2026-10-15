@@ -56,7 +56,7 @@ export default function Depoimentos() {
                                             <Star
                                                 key={s}
                                                 size={16}
-                                                className="fill-amber-400 text-amber-400"
+                                                className="fill-azul text-azul"
                                             />
                                         ))}
                                     </div>

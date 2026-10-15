@@ -67,7 +67,7 @@ export default function Hero() {
                     className="mb-7 flex items-center gap-4"
                 >
                     <span className="h-px w-12 bg-azul" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-300 sm:text-xs">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-azul sm:text-xs">
                         Serra · ES — Grande Vitória
                     </span>
                 </motion.div>
@@ -75,7 +75,7 @@ export default function Hero() {
                 <h1 className="max-w-5xl font-display text-[clamp(2.45rem,6.4vw,5.4rem)] font-bold leading-[1.04] tracking-tight text-white">
                     <RevealLine delay={0.22}>Esquadrias de Alumínio</RevealLine>
                     <RevealLine delay={0.36}>
-                        e Vidros <span className="text-sky-400">Sob Medida</span>
+                        e Vidros <span className="text-azul">Sob Medida</span>
                     </RevealLine>
                     <RevealLine delay={0.5}>para o Seu Projeto</RevealLine>
                 </h1>

@@ -55,14 +55,14 @@ module.exports = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))'
         },
-        graphite: '#0F172A',
-        graphite2: '#1E293B',
-        silver: '#CBD5E1',
-        silverlight: '#E2E8F0',
-        mist: '#F8FAFC',
+        graphite: '#000000',
+        graphite2: '#111111',
+        silver: '#808080',
+        silverlight: '#D4D4D4',
+        mist: '#F5F5F5',
         azul: {
-          DEFAULT: '#0284C7',
-          dark: '#0369A1'
+          DEFAULT: '#FF0000',
+          dark: '#CC0000'
         }
       },
       fontFamily: {

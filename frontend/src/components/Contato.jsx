@@ -51,7 +51,7 @@ export default function Contato() {
             <div className="pointer-events-none absolute -left-40 top-1/3 h-[420px] w-[420px] rounded-full bg-azul/10 blur-[130px]" />
             <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-2">
                 <Reveal>
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-400">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-azul">
                         Orçamento sem compromisso
                     </p>
                     <h2 className="mt-4 max-w-xl font-display text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
@@ -68,9 +68,9 @@ export default function Contato() {
                             href={WA_LINK}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4 transition-colors duration-300 hover:border-sky-400/40"
+                            className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4 transition-colors duration-300 hover:border-azul/50"
                         >
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-sky-300">
+                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-azul">
                                 <WhatsAppIcon className="h-5 w-5" />
                             </span>
                             <span>
@@ -87,9 +87,9 @@ export default function Contato() {
                             href={INSTAGRAM_URL}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4 transition-colors duration-300 hover:border-sky-400/40"
+                            className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4 transition-colors duration-300 hover:border-azul/50"
                         >
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-sky-300">
+                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-azul">
                                 <Instagram size={20} />
                             </span>
                             <span>
@@ -102,7 +102,7 @@ export default function Contato() {
                             </span>
                         </a>
                         <div className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4">
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-sky-300">
+                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-azul">
                                 <MapPin size={20} />
                             </span>
                             <span>
@@ -115,7 +115,7 @@ export default function Contato() {
                             </span>
                         </div>
                         <div className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4">
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-sky-300">
+                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-azul/15 text-azul">
                                 <Clock size={20} />
                             </span>
                             <span>
