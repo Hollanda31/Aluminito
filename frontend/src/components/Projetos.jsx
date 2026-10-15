@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Janelas", "Fachadas", "Guarda-Corpo"];
+const CATEGORIES = ["Todos", "Portas", "Janelas", "Fachadas", "Divisórias", "Guarda-Corpo"];
 
 const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
@@ -30,7 +30,17 @@ const PROJECTS = [
         ],
     },
     { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
-    { id: 5, cat: "Fachadas", title: "Pele de vidro comercial", img: img("photo-1479292889369-1a48f234247e", 900), tall: true },
+    {
+        id: 5,
+        cat: "Divisórias",
+        title: "Divisória corporativa em vidro",
+        img: "/projects/divisoria-corporativa-1.jpg",
+        tall: true,
+        imgs: [
+            "/projects/divisoria-corporativa-1.jpg",
+            "/projects/divisoria-corporativa-2.jpg",
+        ],
+    },
     { id: 6, cat: "Guarda-Corpo", title: "Guarda-corpo em vidro à beira-mar", img: img("photo-1597663459867-9903bf92dcfd", 900) },
     {
         id: 7,
@@ -48,7 +58,8 @@ const PROJECTS = [
     { id: 10, cat: "Guarda-Corpo", title: "Guarda-corpo em sacadas", img: img("photo-1595039357995-905cad2933e3", 900) },
 ];
 
-const slug = (c) => c.toLowerCase();
+const slug = (c) =>
+    c.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const photosOf = (p) => (p.imgs ? p.imgs : [p.img]);
 
 export default function Projetos() {
