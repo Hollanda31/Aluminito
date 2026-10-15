@@ -18,7 +18,7 @@ const PROJECTS = [
     {
         id: 3,
         cat: "Portas",
-        title: "Porta de correr comercial em alumínio",
+        title: "Porta de Giro comercial em Alumínio",
         img: "/projects/porta-comercial-4.jpg",
         tall: true,
         imgs: [
