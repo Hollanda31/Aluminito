@@ -8,6 +8,7 @@ import { IMAGES, waOrcamento } from "@/lib/site";
 const EASE = [0.16, 1, 0.3, 1];
 
 const SLIDES = [
+    "/hero/loja-atual.jpg",
     "/hero/historia-2.jpg",
     "/hero/historia-3.jpg",
     "/hero/historia-4.jpg",

@@ -48,6 +48,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-15: Fundo do Hero virou carrossel com 5 fotos (capa da sacada + 4 fotos históricas da fábrica em `public/hero/`), crossfade de 1,4s a cada 5,5s, zoom Ken Burns sutil e pontos de navegação clicáveis.
 - 2026-07-15: Carrossel reduzido às 3 fotos históricas (removidas sacada + primeira histórica); selo "Acervo histórico · Há mais de 40 anos no ramo" adicionado ao Hero (empresa atua há +40 anos — informação do cliente).
 - 2026-07-15: Removidos os 3 últimos placeholders da galeria ("Esquadrias panorâmicas", "Fachada em vidro", "Guarda-corpo em sacadas"); galeria agora é 100% fotos reais (7 projetos). Filtros "Fachadas" e "Guarda-Corpo" ocultados por estarem sem projetos — reativar quando o cliente enviar fotos dessas categorias. Placeholders restantes: cards de Produtos e foto da seção Sobre.
+- 2026-07-15: Foto da fachada atual da loja adicionada como 1º slide do carrossel da capa (4 slides). Nova categoria "Banheiro" na galeria com projeto "Box de vidro e espelho sob medida" (2 ângulos reais, rotação corrigida 90° horário).
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

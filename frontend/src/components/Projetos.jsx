@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro"];
 
 const PROJECTS = [
     { id: 1, cat: "Portas", title: "Porta de alumínio branca com puxador", img: "/projects/porta-branca.jpg" },
@@ -62,6 +62,16 @@ const PROJECTS = [
             "/projects/portao-correr-branco.jpg",
             "/projects/portao-correr-branco-2.jpg",
             "/projects/portao-correr-branco-3.jpg",
+        ],
+    },
+    {
+        id: 11,
+        cat: "Banheiro",
+        title: "Box de vidro e espelho sob medida",
+        img: "/projects/banheiro-2.jpg",
+        imgs: [
+            "/projects/banheiro-2.jpg",
+            "/projects/banheiro-1.jpg",
         ],
     },
 ];
