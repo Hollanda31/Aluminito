@@ -68,8 +68,11 @@ const PROJECTS = [
         id: 11,
         cat: "Banheiro",
         title: "Box de vidro e espelho sob medida",
-        img: "/projects/banheiro-2.jpg",
+        img: "/projects/banheiro-3.jpg",
         imgs: [
+            "/projects/banheiro-3.jpg",
+            "/projects/banheiro-4.jpg",
+            "/projects/banheiro-5.jpg",
             "/projects/banheiro-2.jpg",
             "/projects/banheiro-1.jpg",
         ],
