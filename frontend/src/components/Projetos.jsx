@@ -69,9 +69,9 @@ const PROJECTS = [
         img: "/projects/banheiro-1.jpg",
         imgs: [
             "/projects/banheiro-1.jpg",
-            "/projects/banheiro-4.jpg",
-            "/projects/banheiro-5.jpg",
             "/projects/banheiro-2.jpg",
+            "/projects/banheiro-5.jpg",
+            "/projects/banheiro-4.jpg",
             "/projects/banheiro-3.jpg",
         ],
     },
