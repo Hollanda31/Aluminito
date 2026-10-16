@@ -4,6 +4,7 @@ import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waMessage } from "@/lib/site";
+import { startScroll, stopScroll } from "@/lib/scroll";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
 
@@ -93,12 +94,12 @@ const slug = (s) =>
     s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-");
 
 const TABS = [
-    { id: "pintura", label: "Pintura Eletrostática" },
     { id: "madeira", label: "Efeito Madeira" },
+    { id: "pintura", label: "Pintura Eletrostática" },
 ];
 
 export default function CatalogoCores() {
-    const [tab, setTab] = useState("pintura");
+    const [tab, setTab] = useState("madeira");
     const [cor, setCor] = useState(null);
     const [step, setStep] = useState("cor");
     const [tipo, setTipo] = useState(null);
@@ -120,6 +121,14 @@ export default function CatalogoCores() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, []);
+
+    const modalAberto = !!cor;
+
+    useEffect(() => {
+        if (modalAberto) stopScroll();
+        else startScroll();
+        return () => startScroll();
+    }, [modalAberto]);
 
     const fechar = () => {
         setCor(null);
@@ -264,7 +273,7 @@ export default function CatalogoCores() {
                             animate={{ y: 0, opacity: 1, scale: 1 }}
                             exit={{ y: 40, opacity: 0, scale: 0.98 }}
                             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                            className="relative max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+                            data-testid="cor-modal-scroll" data-lenis-prevent data-scroll-lock-allow className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
@@ -278,7 +287,7 @@ export default function CatalogoCores() {
 
                             {step === "cor" && (
                                 <div>
-                                    <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                                    <div className="h-[32vh] max-h-[280px] min-h-[180px] w-full overflow-hidden bg-slate-100">
                                         <img
                                             src={`/cores/${cor.arq}`}
                                             alt={`Cor ${cor.nome}`}

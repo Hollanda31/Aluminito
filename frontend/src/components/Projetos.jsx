@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Varandas"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo"];
 
 const PROJECTS = [
     {
@@ -63,23 +63,37 @@ const PROJECTS = [
         ],
     },
     {
-        id: 11,
-        cat: "Banheiro",
-        title: "Box de vidro e espelho sob medida",
-        img: "/projects/banheiro-1.jpg",
+        id: 8,
+        cat: "Pele de Vidro",
+        title: "Pele de vidro sob medida",
+        img: "/projects/Pele-de-vidro-1.jpg",
         imgs: [
-            "/projects/banheiro-1.jpg",
-            "/projects/banheiro-2.jpg",
-            "/projects/banheiro-5.jpg",
-            "/projects/banheiro-4.jpg",
-            "/projects/banheiro-3.jpg",
+            "/projects/Pele-de-vidro-1.jpg",
+            "/projects/Pele-de-vidro-2.jpg",
         ],
     },
+     id: 9,
+        cat: "Guarda Corpo",
+        title: "Guarda Corpo sob medida",
+        img: "/projects/Guarda-corpo-1.jpg",
+        imgs: [
+            "/projects/Guarda-corpo-1.jpg",
+            "/projects/Guarda-corpo-2.jpg",
+            "/projects/Guarda-corpo-3.jpg",
+        ],
     {
-    id: 12,
-    cat: "Varandas",
-    title: "Varanda envidraçada",
-    img: "/projects/sacada-envidracada.jpg",
+        id: 8,
+        cat: "Banheiro",
+        title: "Box de vidro e espelho sob medida",
+        img: "/projects/Banheiro-1.jpg",
+        imgs: [
+            "/projects/Banheiro-1.jpg",
+            "/projects/Banheiro-2.jpg",
+            "/projects/Banheiro-3.jpg",
+            "/projects/Banheiro-4.jpg",
+            "/projects/Banheiro-5.jpg",
+            "/projects/Banheiro-6.jpg",
+        ],
 },
 ];
 

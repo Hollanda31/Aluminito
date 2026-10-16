@@ -26,3 +26,35 @@ export function scrollToId(id) {
         el.scrollIntoView({ behavior: "smooth" });
     }
 }
+
+let lockHandler = null;
+
+export function stopScroll() {
+    if (lenis) lenis.stop();
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    if (!lockHandler) {
+        lockHandler = (e) => {
+            const alvo = e.target;
+            const dentro =
+                alvo && alvo.closest && alvo.closest("[data-scroll-lock-allow]");
+            if (!dentro) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        };
+        window.addEventListener("wheel", lockHandler, { passive: false, capture: true });
+        window.addEventListener("touchmove", lockHandler, { passive: false, capture: true });
+    }
+}
+
+export function startScroll() {
+    if (lenis) lenis.start();
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    if (lockHandler) {
+        window.removeEventListener("wheel", lockHandler, { capture: true });
+        window.removeEventListener("touchmove", lockHandler, { capture: true });
+        lockHandler = null;
+    }
+}
