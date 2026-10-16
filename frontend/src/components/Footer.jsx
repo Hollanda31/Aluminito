@@ -15,6 +15,7 @@ const NAV = [
     { id: "inicio", label: "Início" },
     { id: "sobre", label: "Sobre Nós" },
     { id: "produtos", label: "Produtos & Serviços" },
+    { id: "cores", label: "Cores" },
     { id: "projetos", label: "Projetos" },
     { id: "depoimentos", label: "Depoimentos" },
     { id: "contato", label: "Contato" },

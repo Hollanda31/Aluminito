@@ -6,6 +6,7 @@ import Hero from "@/components/Hero";
 import Marquee from "@/components/Marquee";
 import Sobre from "@/components/Sobre";
 import Produtos from "@/components/Produtos";
+import CatalogoCores from "@/components/CatalogoCores";
 import Projetos from "@/components/Projetos";
 import Depoimentos from "@/components/Depoimentos";
 import Contato from "@/components/Contato";
@@ -46,6 +47,7 @@ function App() {
                     <Marquee />
                     <Sobre />
                     <Produtos />
+                    <CatalogoCores />
                     <Projetos />
                     <Depoimentos />
                     <Contato />

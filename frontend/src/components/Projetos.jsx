@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Varandas"];
 
 const PROJECTS = [
     {
@@ -75,6 +75,12 @@ const PROJECTS = [
             "/projects/banheiro-3.jpg",
         ],
     },
+    {
+    id: 12,
+    cat: "Varandas",
+    title: "Varanda envidraçada",
+    img: "/projects/sacada-envidracada.jpg",
+},
 ];
 
 const slug = (c) =>

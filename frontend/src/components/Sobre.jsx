@@ -50,13 +50,7 @@ export default function Sobre() {
                                 acabamento de alto padrão.
                             </h2>
                             <p className="mt-6 text-base leading-relaxed text-slate-600 sm:text-lg">
-                                A Aluminito fabrica e instala esquadrias de
-                                alumínio e todos os tipos de vidros sob
-                                medida para residências e obras comerciais na
-                                região de Serra - ES e Grande Vitória. Do
-                                projeto à entrega, uma equipe própria cuida de
-                                cada detalhe — do corte do perfil ao último
-                                acabamento.
+                                Somos uma empresa comprometida em entregar soluções de qualidade, unindo experiência, inovação e atendimento próximo. Trabalhamos todos os dias para oferecer resultados que geram confiança e fortalecem parcerias duradouras.
                             </p>
                             <div className="mt-7 flex flex-wrap gap-2">
                                 {PILLS.map((p) => (
