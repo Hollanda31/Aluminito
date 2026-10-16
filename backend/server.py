@@ -82,8 +82,8 @@ SIM_TIPOS = {
         "desc": "aluminum sliding window",
     },
     "outros": {
-        "base": "/app/frontend/public/projects/sacada-envidracada.jpg",
-        "desc": "aluminum frame glazing system (esquadria de aluminio com vidro)",
+        "base": "/app/frontend/public/projects/porta-duas-folhas-1.jpg",
+        "desc": "aluminum sliding door (porta de correr) with large glass panels and a slatted aluminum panel",
     },
     "persiana": {
         "base": "/app/backend/base_persiana.jpg",
