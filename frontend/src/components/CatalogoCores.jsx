@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waMessage } from "@/lib/site";
+
+const BACKEND = process.env.REACT_APP_BACKEND_URL;
 
 const PINTURA = [
     { nome: "Branco", codigo: "LI", arq: "BRANCO-LI-BR.jpg" },
@@ -69,6 +73,22 @@ const MADEIRA = [
     { nome: "Pátina", codigo: "COD.20", arq: "COD.20-PATINA.webp" },
 ];
 
+const TODAS = [...PINTURA, ...MADEIRA];
+
+const TIPOS = [
+    { id: "porta", nome: "Porta", desc: "Porta de alumínio com vidro", icon: DoorOpen },
+    { id: "persiana", nome: "Persiana", desc: "Persiana de alumínio", icon: Blinds },
+    { id: "janela", nome: "Janela", desc: "Janela de correr", icon: Frame },
+    { id: "outros", nome: "Outros modelos", desc: "Esquadrias e envidraçamentos", icon: LayoutGrid },
+];
+
+const LOAD_MSGS = [
+    "Analisando a cor escolhida...",
+    "Aplicando na esquadria...",
+    "Ajustando luz e reflexos...",
+    "Finalizando a simulação...",
+];
+
 const slug = (s) =>
     s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "-");
 
@@ -79,7 +99,76 @@ const TABS = [
 
 export default function CatalogoCores() {
     const [tab, setTab] = useState("pintura");
+    const [cor, setCor] = useState(null);
+    const [step, setStep] = useState("cor");
+    const [tipo, setTipo] = useState(null);
+    const [img, setImg] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [erro, setErro] = useState(null);
+    const [msgIdx, setMsgIdx] = useState(0);
+
     const lista = tab === "pintura" ? PINTURA : MADEIRA;
+
+    useEffect(() => {
+        if (!loading) return;
+        const t = setInterval(() => setMsgIdx((i) => (i + 1) % LOAD_MSGS.length), 2600);
+        return () => clearInterval(t);
+    }, [loading]);
+
+    useEffect(() => {
+        const onKey = (e) => e.key === "Escape" && fechar();
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
+    const fechar = () => {
+        setCor(null);
+        setStep("cor");
+        setTipo(null);
+        setImg(null);
+        setErro(null);
+        setLoading(false);
+    };
+
+    const gerar = async (corSel, tipoSel) => {
+        setLoading(true);
+        setErro(null);
+        setImg(null);
+        setMsgIdx(0);
+        try {
+            const r = await fetch(`${BACKEND}/api/simular`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tipo: tipoSel,
+                    cor_arq: corSel.arq,
+                    cor_nome: corSel.nome,
+                    acabamento: corSel.arq.startsWith("COD.") ? "madeira" : "pintura",
+                }),
+            });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.detail || "Falha ao gerar");
+            setImg(d.image);
+        } catch (e) {
+            setErro("Não consegui gerar a simulação agora. Toque em tentar novamente.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const escolherTipo = (t) => {
+        setTipo(t);
+        setStep("sim");
+        gerar(cor, t);
+    };
+
+    const trocarCor = (c) => {
+        if (loading || c.arq === cor.arq) return;
+        setCor(c);
+        gerar(c, tipo);
+    };
+
+    const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome || "";
 
     return (
         <section id="cores" data-testid="catalogo-cores-section" className="bg-mist py-24 sm:py-32">
@@ -94,9 +183,8 @@ export default function CatalogoCores() {
                         </h2>
                     </div>
                     <p className="max-w-sm text-sm leading-relaxed text-slate-600 sm:text-base">
-                        Pintura eletrostática e efeito madeira para os perfis
-                        de alumínio — toque em uma cor para pedir orçamento
-                        com ela.
+                        Toque em uma cor para ampliar e simular como ela fica
+                        em portas, janelas, persianas e outras esquadrias.
                     </p>
                 </Reveal>
 
@@ -124,54 +212,242 @@ export default function CatalogoCores() {
                     data-testid="cores-grid"
                     className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
                 >
-                    {lista.map((cor) => (
-                        <a
-                            key={cor.arq}
-                            data-testid={`cor-card-${slug(cor.nome)}-${slug(cor.codigo)}`}
-                            href={waMessage(
-                                `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
-                            )}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-azul/60 hover:shadow-xl hover:shadow-azul/5"
+                    {lista.map((c) => (
+                        <button
+                            key={c.arq}
+                            data-testid={`cor-card-${slug(c.nome)}-${slug(c.codigo)}`}
+                            onClick={() => {
+                                setCor(c);
+                                setStep("cor");
+                            }}
+                            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left transition-all duration-300 hover:-translate-y-1 hover:border-azul/60 hover:shadow-xl hover:shadow-azul/5"
                         >
-                            <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                            <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                                 <img
-                                    src={`/cores/${cor.arq}`}
-                                    alt={`Perfil de alumínio na cor ${cor.nome} ${cor.codigo}`}
+                                    src={`/cores/${c.arq}`}
+                                    alt={`Perfil de alumínio na cor ${c.nome} ${c.codigo}`}
                                     loading="lazy"
                                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
+                                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-2 text-center text-[10px] font-semibold uppercase tracking-widest text-white opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                    Ampliar e simular
+                                </span>
                             </div>
                             <div className="p-4">
-                                <p className="font-display text-sm font-semibold text-graphite">
-                                    {cor.nome}
-                                </p>
-                                <p className="mt-0.5 text-xs text-slate-500">{cor.codigo}</p>
+                                <p className="font-display text-sm font-semibold text-graphite">{c.nome}</p>
+                                <p className="mt-0.5 text-xs text-slate-500">{c.codigo}</p>
                             </div>
-                        </a>
+                        </button>
                     ))}
                 </div>
 
                 <Reveal className="mt-12 flex flex-col items-center gap-4 text-center">
                     <p className="text-xs text-slate-500">
-                        Amostras do catálogo Metaperfil · Consulte a
-                        disponibilidade da cor para o seu projeto.
+                        Amostras do catálogo Metaperfil · Simulações geradas
+                        por IA são ilustrativas.
                     </p>
-                    <a
-                        data-testid="cores-cta-whatsapp"
-                        href={waMessage(
-                            "Olá! Vi o catálogo de cores no site da Aluminito e quero ajuda para escolher o acabamento do meu projeto.",
-                        )}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-3 rounded-full bg-azul px-7 py-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
-                    >
-                        <WhatsAppIcon className="h-5 w-5" />
-                        Falar sobre cores no WhatsApp
-                    </a>
                 </Reveal>
             </div>
+
+            <AnimatePresence>
+                {cor && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        data-testid="cor-sim-modal"
+                        className="fixed inset-0 z-[95] flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center sm:p-6"
+                        onClick={fechar}
+                    >
+                        <motion.div
+                            initial={{ y: 40, opacity: 0, scale: 0.98 }}
+                            animate={{ y: 0, opacity: 1, scale: 1 }}
+                            exit={{ y: 40, opacity: 0, scale: 0.98 }}
+                            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                            className="relative max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                data-testid="cor-modal-close"
+                                onClick={fechar}
+                                aria-label="Fechar"
+                                className="absolute right-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur transition-colors hover:bg-azul"
+                            >
+                                <X size={18} />
+                            </button>
+
+                            {step === "cor" && (
+                                <div>
+                                    <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                                        <img
+                                            src={`/cores/${cor.arq}`}
+                                            alt={`Cor ${cor.nome}`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="p-6 sm:p-8">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-azul">
+                                            Cor selecionada
+                                        </p>
+                                        <h3 className="mt-1.5 font-display text-2xl font-bold text-graphite">
+                                            {cor.nome}
+                                        </h3>
+                                        <p className="mt-1 text-sm text-slate-500">{cor.codigo}</p>
+                                        <button
+                                            data-testid="cor-btn-simular"
+                                            onClick={() => setStep("tipo")}
+                                            className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl bg-azul px-6 py-4 font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
+                                        >
+                                            <Wand2 size={18} />
+                                            Simular
+                                        </button>
+                                        <a
+                                            data-testid="cor-btn-whatsapp"
+                                            href={waMessage(
+                                                `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
+                                            )}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 px-6 py-3.5 text-sm font-medium text-graphite transition-colors hover:border-azul/50"
+                                        >
+                                            <WhatsAppIcon className="h-4 w-4" />
+                                            Pedir orçamento desta cor
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === "tipo" && (
+                                <div className="p-6 sm:p-8">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-azul">
+                                        Simulação · {cor.nome}
+                                    </p>
+                                    <h3 className="mt-1.5 font-display text-2xl font-bold text-graphite">
+                                        O que você quer simular?
+                                    </h3>
+                                    <div className="mt-6 grid grid-cols-2 gap-3">
+                                        {TIPOS.map((t) => (
+                                            <button
+                                                key={t.id}
+                                                data-testid={`sim-tipo-${t.id}`}
+                                                onClick={() => escolherTipo(t.id)}
+                                                className="group rounded-2xl border border-slate-200 p-5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-azul/60 hover:shadow-lg"
+                                            >
+                                                <span className="grid h-11 w-11 place-items-center rounded-xl bg-azul/10 text-azul transition-colors group-hover:bg-azul group-hover:text-white">
+                                                    <t.icon size={22} strokeWidth={1.8} />
+                                                </span>
+                                                <p className="mt-3 font-display font-semibold text-graphite">{t.nome}</p>
+                                                <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{t.desc}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        data-testid="sim-back-cor"
+                                        onClick={() => setStep("cor")}
+                                        className="mt-6 text-sm font-medium text-slate-500 transition-colors hover:text-azul"
+                                    >
+                                        ← Voltar para a cor
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === "sim" && (
+                                <div>
+                                    <div className="flex items-center gap-3 border-b border-slate-100 p-5">
+                                        <img
+                                            src={`/cores/${cor.arq}`}
+                                            alt={cor.nome}
+                                            className="h-11 w-11 rounded-lg border border-slate-200 object-cover"
+                                        />
+                                        <div>
+                                            <p className="font-display text-sm font-bold text-graphite">
+                                                {tipoNome} · {cor.nome}
+                                            </p>
+                                            <p className="text-xs text-slate-500">{cor.codigo} · simulação por IA</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                                        {loading && (
+                                            <div
+                                                data-testid="sim-loading"
+                                                className="absolute inset-0 flex flex-col items-center justify-center gap-4"
+                                            >
+                                                <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-slate-200 border-t-azul" />
+                                                <p className="text-sm font-medium text-slate-600">{LOAD_MSGS[msgIdx]}</p>
+                                                <p className="text-xs text-slate-400">A primeira geração pode levar até 30 segundos</p>
+                                            </div>
+                                        )}
+                                        {erro && !loading && (
+                                            <button
+                                                data-testid="sim-error"
+                                                onClick={() => gerar(cor, tipo)}
+                                                className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center"
+                                            >
+                                                <p className="text-sm font-medium text-graphite">{erro}</p>
+                                                <span className="text-xs font-semibold text-azul">Tentar novamente</span>
+                                            </button>
+                                        )}
+                                        {img && !loading && (
+                                            <img
+                                                data-testid="sim-result-image"
+                                                src={img}
+                                                alt={`Simulação: ${tipoNome} na cor ${cor.nome}`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div className="border-t border-slate-100 p-5">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                            Trocar cor
+                                        </p>
+                                        <div className="mt-3 flex gap-2 overflow-x-auto pb-2" data-testid="sim-color-rail">
+                                            {TODAS.map((c) => (
+                                                <button
+                                                    key={c.arq}
+                                                    data-testid={`sim-cor-${slug(c.nome)}-${slug(c.codigo)}`}
+                                                    onClick={() => trocarCor(c)}
+                                                    disabled={loading}
+                                                    title={`${c.nome} ${c.codigo}`}
+                                                    className={`h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200 disabled:opacity-40 ${
+                                                        c.arq === cor.arq
+                                                            ? "border-azul ring-2 ring-azul/30"
+                                                            : "border-transparent hover:border-slate-300"
+                                                    }`}
+                                                >
+                                                    <img src={`/cores/${c.arq}`} alt={c.nome} className="h-full w-full object-cover" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <button
+                                                data-testid="sim-back-tipo"
+                                                onClick={() => setStep("tipo")}
+                                                className="text-left text-sm font-medium text-slate-500 transition-colors hover:text-azul"
+                                            >
+                                                ← Trocar tipo de projeto
+                                            </button>
+                                            <a
+                                                data-testid="sim-whatsapp"
+                                                href={waMessage(
+                                                    `Olá! Fiz uma simulação no site: ${tipoNome} na cor ${cor.nome} (${cor.codigo}). Gostaria de um orçamento.`,
+                                                )}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center justify-center gap-2 rounded-full bg-azul px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-azul-dark"
+                                            >
+                                                <WhatsAppIcon className="h-4 w-4" />
+                                                Pedir orçamento nesta cor
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 }

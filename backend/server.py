@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -65,6 +65,106 @@ async def get_status_checks():
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
+
+# --- Simulador de cores com IA (Gemini image editing) ---
+import base64
+import re
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+
+SIM_TIPOS = {
+    "porta": {
+        "base": "/app/frontend/public/projects/porta-branca.jpg",
+        "desc": "aluminum entrance door with a large glass panel",
+    },
+    "janela": {
+        "base": "/app/frontend/public/projects/janela-correr-branca.jpg",
+        "desc": "aluminum sliding window",
+    },
+    "outros": {
+        "base": "/app/frontend/public/projects/sacada-envidracada.jpg",
+        "desc": "aluminum frame glazing system (esquadria de aluminio com vidro)",
+    },
+    "persiana": {
+        "base": "/app/backend/base_persiana.jpg",
+        "desc": "aluminum venetian blind (persiana) covering a window in a modern interior",
+    },
+}
+SIM_CORES_DIR = "/app/frontend/public/cores"
+SIM_CACHE_DIR = Path("/app/backend/simulacao_cache")
+SIM_CACHE_DIR.mkdir(exist_ok=True)
+
+
+class SimulacaoRequest(BaseModel):
+    tipo: str
+    cor_arq: str
+    cor_nome: str
+    acabamento: str = "pintura"
+
+
+def _img_b64(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+
+def _new_chat():
+    chat = LlmChat(
+        api_key=os.environ["EMERGENT_LLM_KEY"],
+        session_id=f"sim-{uuid.uuid4()}",
+        system_message="You are a photorealistic image editor for an aluminum frames manufacturer.",
+    )
+    chat.with_model("gemini", "gemini-3.1-flash-image-preview").with_params(modalities=["image", "text"])
+    return chat
+
+
+@api_router.post("/simular")
+async def simular_cor(req: SimulacaoRequest):
+    if req.tipo not in SIM_TIPOS:
+        raise HTTPException(status_code=400, detail="Tipo de projeto invalido")
+    cor_arq = os.path.basename(req.cor_arq)
+    if not re.fullmatch(r"[\w.\-]+", cor_arq):
+        raise HTTPException(status_code=400, detail="Arquivo de cor invalido")
+    cor_path = os.path.join(SIM_CORES_DIR, cor_arq)
+    if not os.path.isfile(cor_path):
+        raise HTTPException(status_code=404, detail="Cor nao encontrada")
+
+    cache_name = re.sub(r"[^\w.\-]", "_", f"{req.tipo}_{cor_arq.rsplit('.', 1)[0]}.png")
+    cache_path = SIM_CACHE_DIR / cache_name
+    if cache_path.is_file():
+        return {"image": "data:image/png;base64," + _img_b64(cache_path)}
+
+    base_path = SIM_TIPOS[req.tipo]["base"]
+
+    if req.tipo == "persiana" and not os.path.isfile(base_path):
+        chat0 = _new_chat()
+        _, imgs0 = await chat0.send_message_multimodal_response(UserMessage(
+            text="Photorealistic photo of a modern matte WHITE aluminum venetian blind (persiana horizontal de aluminio branca), half open, covering a large window in a bright modern living room, natural daylight, high quality"
+        ))
+        if not imgs0:
+            raise HTTPException(status_code=502, detail="Falha ao gerar imagem base da persiana")
+        with open(base_path, "wb") as f:
+            f.write(base64.b64decode(imgs0[0]["data"]))
+
+    acab_txt = "wood grain finish texture" if req.acabamento == "madeira" else "solid painted finish"
+    prompt = (
+        f"The first image is a photo of an {SIM_TIPOS[req.tipo]['desc']}. "
+        f"The second image is a color swatch of an aluminum profile finish. "
+        f"Repaint ONLY the aluminum frame, profiles, slats and metal parts to exactly match the swatch ({acab_txt}, finish name: {req.cor_nome}). "
+        "Keep the glass, the background, the lighting, the reflections and every other element completely unchanged. Photorealistic result, high quality."
+    )
+    chat = _new_chat()
+    _, images = await chat.send_message_multimodal_response(UserMessage(
+        text=prompt,
+        file_contents=[ImageContent(_img_b64(base_path)), ImageContent(_img_b64(cor_path))],
+    ))
+    if not images:
+        raise HTTPException(status_code=502, detail="A IA nao retornou imagem. Tente novamente.")
+
+    img_bytes = base64.b64decode(images[0]["data"])
+    with open(cache_path, "wb") as f:
+        f.write(img_bytes)
+    return {"image": "data:image/png;base64," + images[0]["data"]}
+
 
 # Include the router in the main app
 app.include_router(api_router)
