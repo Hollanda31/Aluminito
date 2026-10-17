@@ -150,6 +150,7 @@ export default function Depoimentos() {
 
                     <Reveal delay={0.1}>
                         <form
+                            data-testid="review-form"
                             onSubmit={submitReview}
                             className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
                         >
@@ -166,6 +167,7 @@ export default function Depoimentos() {
                                         <button
                                             key={value}
                                             type="button"
+                                            data-testid={`review-rating-${value}`}
                                             onClick={() => setRating(value)}
                                             aria-label={`Dar ${value} ${value === 1 ? "estrela" : "estrelas"}`}
                                             aria-pressed={rating === value}
@@ -191,6 +193,7 @@ export default function Depoimentos() {
                                         required
                                         minLength={2}
                                         maxLength={80}
+                                        data-testid="review-input-name"
                                         value={name}
                                         onChange={(event) => setName(event.target.value)}
                                         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal text-graphite focus:border-azul focus:ring-2 focus:ring-azul/20"
@@ -201,6 +204,7 @@ export default function Depoimentos() {
                                     Cidade (opcional)
                                     <input
                                         maxLength={80}
+                                        data-testid="review-input-place"
                                         value={place}
                                         onChange={(event) => setPlace(event.target.value)}
                                         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal text-graphite focus:border-azul focus:ring-2 focus:ring-azul/20"
@@ -216,6 +220,7 @@ export default function Depoimentos() {
                                     minLength={10}
                                     maxLength={1000}
                                     rows={4}
+                                    data-testid="review-input-text"
                                     value={text}
                                     onChange={(event) => setText(event.target.value)}
                                     className="mt-2 w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm font-normal text-graphite focus:border-azul focus:ring-2 focus:ring-azul/20"
@@ -228,18 +233,19 @@ export default function Depoimentos() {
                             </p>
 
                             {error && (
-                                <p role="alert" className="mt-3 text-sm text-red-600">
+                                <p data-testid="review-form-error" role="alert" className="mt-3 text-sm text-red-600">
                                     {error}
                                 </p>
                             )}
                             {notice && (
-                                <p role="status" className="mt-3 text-sm text-green-700">
+                                <p data-testid="review-form-notice" role="status" className="mt-3 text-sm text-green-700">
                                     {notice}
                                 </p>
                             )}
 
                             <button
                                 type="submit"
+                                data-testid="review-submit"
                                 disabled={submitting}
                                 className="mt-5 inline-flex items-center justify-center rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-azul-dark disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -272,7 +278,7 @@ export default function Depoimentos() {
                                     delay={Math.min(index * 0.05, 0.2)}
                                     className="h-full"
                                 >
-                                    <figure className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-200/70">
+                                    <figure data-testid={`public-review-${review.id}`} className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition-shadow duration-300 hover:shadow-xl hover:shadow-slate-200/70">
                                         <div
                                             className="flex gap-1"
                                             aria-label={`Avaliação ${review.rating} de 5`}

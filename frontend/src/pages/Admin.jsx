@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi, withAuthRefresh } from "@/lib/auth";
+import ReviewsManager from "@/components/admin/ReviewsManager";
 import {
     Bar,
     BarChart,
@@ -29,6 +30,7 @@ const fmtData = (iso) =>
 export default function Admin() {
     const navigate = useNavigate();
     const [periodo, setPeriodo] = useState("mes");
+    const [secao, setSecao] = useState("visao");
     const [stats, setStats] = useState(null);
     const [erro, setErro] = useState(null);
     const [carregando, setCarregando] = useState(true);
@@ -127,6 +129,31 @@ export default function Admin() {
             </header>
 
             <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
+                <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
+                    {[
+                        { id: "visao", label: "Visão geral" },
+                        { id: "avaliacoes", label: "Avaliações" },
+                    ].map((aba) => (
+                        <button
+                            key={aba.id}
+                            data-testid={`admin-tab-${aba.id}`}
+                            onClick={() => setSecao(aba.id)}
+                            aria-pressed={secao === aba.id}
+                            className={`rounded-full border px-5 py-2.5 text-sm font-medium transition-all ${
+                                secao === aba.id
+                                    ? "border-azul bg-azul text-white"
+                                    : "border-white/15 text-silver hover:border-white/40"
+                            }`}
+                        >
+                            {aba.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div
+                    data-testid="admin-overview-section"
+                    className={secao === "visao" ? "" : "hidden"}
+                >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex gap-2">
                         {[
@@ -334,6 +361,9 @@ export default function Admin() {
                         </div>
                     </>
                 ) : null}
+                </div>
+
+                {secao === "avaliacoes" && <ReviewsManager />}
             </main>
         </div>
     );

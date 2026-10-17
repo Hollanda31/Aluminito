@@ -45,6 +45,16 @@ def test_admin_stats_requires_auth(client):
     assert r.status_code == 401
 
 
+
+def test_admin_reviews_require_auth(client):
+    assert client.get(f"{API}/admin/reviews").status_code == 401
+    assert client.patch(
+        f"{API}/admin/reviews/review-inexistente/status",
+        json={"status": "hidden"},
+    ).status_code == 401
+    assert client.delete(f"{API}/admin/reviews/review-inexistente").status_code == 401
+
+
 # --- Auth flows ---
 def test_login_invalid(client):
     r = client.post(
@@ -120,6 +130,57 @@ def test_stats_week_and_month(auth_client):
         # Our test event should appear
         grupos = [g["grupo"] for g in d["por_grupo"]]
         assert "TEST_stats_grupo" in grupos
+
+
+
+def test_admin_review_moderation(auth_client, client):
+    review_id = None
+    try:
+        created = client.post(
+            f"{API}/reviews",
+            json={
+                "name": "TEST Moderacao",
+                "role": "Cliente",
+                "place": "Serra",
+                "rating": 5,
+                "text": "Avaliação criada para testar a moderação do painel.",
+            },
+        )
+        assert created.status_code == 201, created.text
+        review = created.json()
+        review_id = review["id"]
+        assert review["status"] == "visible"
+
+        admin_list = auth_client.get(f"{API}/admin/reviews")
+        assert admin_list.status_code == 200
+        assert review_id in [r["id"] for r in admin_list.json()]
+
+        hidden = auth_client.patch(
+            f"{API}/admin/reviews/{review_id}/status",
+            json={"status": "hidden"},
+        )
+        assert hidden.status_code == 200, hidden.text
+        assert hidden.json()["status"] == "hidden"
+
+        public_hidden = client.get(f"{API}/reviews")
+        assert public_hidden.status_code == 200
+        assert review_id not in [r["id"] for r in public_hidden.json()]
+
+        visible = auth_client.patch(
+            f"{API}/admin/reviews/{review_id}/status",
+            json={"status": "visible"},
+        )
+        assert visible.status_code == 200, visible.text
+
+        public_visible = client.get(f"{API}/reviews")
+        assert review_id in [r["id"] for r in public_visible.json()]
+
+        deleted = auth_client.delete(f"{API}/admin/reviews/{review_id}")
+        assert deleted.status_code == 204
+        review_id = None
+    finally:
+        if review_id:
+            auth_client.delete(f"{API}/admin/reviews/{review_id}")
 
 
 def test_logout(auth_client):

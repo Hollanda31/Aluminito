@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import List
+from typing import List, Literal
 
 from dotenv import load_dotenv
 
@@ -19,6 +19,7 @@ from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict
+from pymongo import ReturnDocument
 from starlette.middleware.cors import CORSMiddleware
 
 logging.basicConfig(
@@ -65,6 +66,11 @@ class ReviewCreate(BaseModel):
 class Review(ReviewCreate):
     id: str
     timestamp: str
+    status: Literal["visible", "hidden"] = "visible"
+
+
+class ReviewStatusUpdate(BaseModel):
+    status: Literal["visible", "hidden"]
 
 
 # Rotas básicas
@@ -114,6 +120,7 @@ async def create_review(input: ReviewCreate):
     review = {
         "id": str(uuid.uuid4()),
         **input.model_dump(),
+        "status": "visible",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -124,11 +131,61 @@ async def create_review(input: ReviewCreate):
 @api_router.get("/reviews", response_model=List[Review])
 async def get_reviews():
     reviews = (
-        await db.reviews.find({}, {"_id": 0})
+        await db.reviews.find(
+            {"status": {"$ne": "hidden"}},
+            {"_id": 0},
+        )
         .sort("timestamp", -1)
         .to_list(100)
     )
     return reviews
+
+
+@api_router.get("/admin/reviews", response_model=List[Review])
+async def admin_list_reviews(request: Request):
+    await get_current_user(request)
+    reviews = (
+        await db.reviews.find({}, {"_id": 0})
+        .sort("timestamp", -1)
+        .to_list(500)
+    )
+    return reviews
+
+
+@api_router.patch(
+    "/admin/reviews/{review_id}/status",
+    response_model=Review,
+)
+async def admin_update_review_status(
+    review_id: str,
+    input: ReviewStatusUpdate,
+    request: Request,
+):
+    await get_current_user(request)
+    result = await db.reviews.find_one_and_update(
+        {"id": review_id},
+        {"$set": {"status": input.status}},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="Avaliacao nao encontrada",
+        )
+    return result
+
+
+@api_router.delete("/admin/reviews/{review_id}", status_code=204)
+async def admin_delete_review(review_id: str, request: Request):
+    await get_current_user(request)
+    result = await db.reviews.delete_one({"id": review_id})
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Avaliacao nao encontrada",
+        )
+    return None
 
 
 # Simulador de cores com IA
