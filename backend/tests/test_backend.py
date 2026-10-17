@@ -53,6 +53,10 @@ def test_admin_reviews_require_auth(client):
         json={"status": "hidden"},
     ).status_code == 401
     assert client.delete(f"{API}/admin/reviews/review-inexistente").status_code == 401
+    assert client.patch(
+        f"{API}/admin/reviews/review-inexistente/featured",
+        json={"featured": True},
+    ).status_code == 401
 
 
 # --- Auth flows ---
@@ -188,6 +192,7 @@ def test_public_reviews_includes_legacy_and_visible(auth_client, client):
     import pymongo
     import uuid as _uuid
     from datetime import datetime, timezone
+
     mc = pymongo.MongoClient(os.environ["MONGO_URL"])
     coll = mc[os.environ["DB_NAME"]].reviews
     legacy_id = f"TEST_legacy_{_uuid.uuid4()}"
@@ -208,6 +213,65 @@ def test_public_reviews_includes_legacy_and_visible(auth_client, client):
         assert legacy_id in ids, "Legacy review (no status) should appear in public GET"
     finally:
         coll.delete_one({"id": legacy_id})
+
+
+def test_admin_review_featured_order(auth_client, client):
+    created_ids = []
+
+    def create_review(name):
+        r = client.post(
+            f"{API}/reviews",
+            json={
+                "name": name,
+                "role": "Cliente",
+                "place": "Serra",
+                "rating": 5,
+                "text": f"Avaliação temporária de ordenação: {name}",
+            },
+        )
+        assert r.status_code == 201, r.text
+        created_ids.append(r.json()["id"])
+        return r.json()["id"]
+
+    try:
+        first_id = create_review("TEST Destaque A")
+        second_id = create_review("TEST Destaque B")
+
+        r = auth_client.patch(
+            f"{API}/admin/reviews/{first_id}/featured",
+            json={"featured": True},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["featured"] is True
+        assert r.json()["featured_at"]
+
+        public = client.get(f"{API}/reviews")
+        assert public.status_code == 200
+        assert public.json()[0]["id"] == first_id
+
+        time.sleep(0.01)
+        r = auth_client.patch(
+            f"{API}/admin/reviews/{second_id}/featured",
+            json={"featured": True},
+        )
+        assert r.status_code == 200, r.text
+
+        public = client.get(f"{API}/reviews")
+        assert public.json()[0]["id"] == second_id
+
+        r = auth_client.patch(
+            f"{API}/admin/reviews/{second_id}/featured",
+            json={"featured": False},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["featured"] is False
+        assert r.json()["featured_at"] is None
+
+        public = client.get(f"{API}/reviews")
+        assert public.json()[0]["id"] == first_id
+    finally:
+        for review_id in created_ids:
+            auth_client.delete(f"{API}/admin/reviews/{review_id}")
 
 
 def test_logout(auth_client):

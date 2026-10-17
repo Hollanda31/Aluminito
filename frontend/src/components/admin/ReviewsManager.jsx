@@ -49,13 +49,11 @@ export default function ReviewsManager() {
         carregar();
     }, [carregar]);
 
-    const filtradas = useMemo(
-        () =>
-            filtro === "todas"
-                ? reviews
-                : reviews.filter((r) => (r.status || "visible") === filtro),
-        [reviews, filtro],
-    );
+    const filtradas = useMemo(() => {
+        if (filtro === "todas") return reviews;
+        if (filtro === "featured") return reviews.filter((r) => r.featured);
+        return reviews.filter((r) => (r.status || "visible") === filtro);
+    }, [reviews, filtro]);
 
     const mudarStatus = async (review, status) => {
         setAcaoId(review.id);
@@ -73,6 +71,27 @@ export default function ReviewsManager() {
                 return;
             }
             setErro("Não foi possível atualizar a avaliação.");
+        } finally {
+            setAcaoId(null);
+        }
+    };
+
+    const mudarDestaque = async (review, featured) => {
+        setAcaoId(review.id);
+        setErro("");
+        try {
+            await withAuthRefresh(() =>
+                authApi.patch(`/api/admin/reviews/${review.id}/featured`, {
+                    featured,
+                }),
+            );
+            await carregar();
+        } catch (e) {
+            if (e.response?.status === 401) {
+                navigate("/admin/login", { replace: true });
+                return;
+            }
+            setErro("Não foi possível atualizar o destaque.");
         } finally {
             setAcaoId(null);
         }
@@ -113,8 +132,8 @@ export default function ReviewsManager() {
                         Gerenciar avaliações
                     </h2>
                     <p className="mt-1 text-sm text-silver/50">
-                        Novas avaliações aparecem no site imediatamente. Você pode
-                        ocultar ou excluir depois.
+                        Novas avaliações aparecem no site imediatamente. Destaques
+                        aparecem primeiro; você também pode ocultar ou excluir.
                     </p>
                 </div>
                 <button
@@ -166,6 +185,7 @@ export default function ReviewsManager() {
                 <div className="mt-6 grid gap-4">
                     {filtradas.map((review) => {
                         const oculta = (review.status || "visible") === "hidden";
+                        const destaque = Boolean(review.featured);
                         const ocupado = acaoId === review.id;
                         return (
                             <article
@@ -174,7 +194,9 @@ export default function ReviewsManager() {
                                 className={`rounded-2xl border p-5 transition-colors ${
                                     oculta
                                         ? "border-white/5 bg-black/20 opacity-70"
-                                        : "border-white/10 bg-black/30"
+                                        : destaque
+                                          ? "border-azul/50 bg-azul/5"
+                                          : "border-white/10 bg-black/30"
                                 }`}
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -192,6 +214,14 @@ export default function ReviewsManager() {
                                         ))}
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        {destaque && (
+                                            <span
+                                                data-testid={`admin-review-featured-${review.id}`}
+                                                className="inline-flex items-center gap-1 rounded-full bg-azul px-2.5 py-1 text-[11px] font-semibold text-white"
+                                            >
+                                                <Pin size={11} /> Destaque
+                                            </span>
+                                        )}
                                         <span
                                             data-testid={`admin-review-status-${review.id}`}
                                             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
@@ -221,6 +251,23 @@ export default function ReviewsManager() {
                                 </p>
 
                                 <div className="mt-5 flex flex-wrap gap-2 border-t border-white/5 pt-4">
+                                    <button
+                                        data-testid={`admin-review-feature-${review.id}`}
+                                        onClick={() => mudarDestaque(review, !destaque)}
+                                        disabled={ocupado}
+                                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${
+                                            destaque
+                                                ? "border-azul bg-azul text-white hover:bg-azul-dark"
+                                                : "border-white/15 text-silver hover:border-azul hover:text-white"
+                                        }`}
+                                    >
+                                        {destaque ? <PinOff size={14} /> : <Pin size={14} />}
+                                        {ocupado
+                                            ? "Salvando..."
+                                            : destaque
+                                              ? "Remover destaque"
+                                              : "Destacar"}
+                                    </button>
                                     <button
                                         data-testid={`admin-review-toggle-${review.id}`}
                                         onClick={() =>
