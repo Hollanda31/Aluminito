@@ -37,7 +37,7 @@ const PROJECTS = [
     },
     {
         id: 5,
-        cat: "Janelas ",
+        cat: "Janelas",
         title: "Janelas de correr",
         img: "/projects/Janela-de-correr-1.jpg",
         tall: true,
@@ -59,7 +59,7 @@ const PROJECTS = [
         video: "/projects/Mural-de-licenças.mp4",
     },
     {
-        id: 5,
+        id: 12,
         cat: "Divisórias",
         title: "Divisória corporativa em vidro",
         img: "/projects/Divisoria-corporativa-1.jpg",

@@ -10,9 +10,11 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - Logo oficial fornecido pelo usuário (ícone "AL" preto/vermelho/branco) → usado no header, footer e favicon
 
 ## Arquitetura
-- Frontend-only (React + Tailwind, padrão Emergent) em `/app/frontend`
-- Sem backend/BD: toda conversão ocorre via links wa.me (nenhum dado é persistido)
-- Componentes em `src/components/`: Header, Hero, Marquee, Sobre, Produtos, Projetos, Depoimentos, Contato, Footer, FloatingWhatsApp, Logo, Reveal, icons
+- Full-stack: React + Tailwind em `/app/frontend`, FastAPI + MongoDB em `/app/backend`
+- Banco ativo obrigatório: `DB_NAME="Gerência"` (reviews, usuários admin e eventos de clique)
+- Landing page em `src/components/`: Header, Hero, Marquee, Sobre, Produtos, CatalogoCores, Projetos, Depoimentos, Contato, Footer e FloatingWhatsApp
+- Painel administrativo em `src/pages/AdminLogin.jsx` e `src/pages/Admin.jsx`, protegido por JWT em cookies httpOnly com refresh
+- Rastreamento de intenção de orçamento em `src/lib/track.js` → `POST /api/track` → coleção `lead_events`
 - Constantes de contato/imagens em `src/lib/site.js`; Lenis smooth-scroll em `src/lib/scroll.js`
 - Fontes: Outfit (títulos) + Plus Jakarta Sans (corpo)
 - Logo oficial em `public/logo-aluminito.png` (favicon + header + footer)
@@ -57,6 +59,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-07-17: Pacote "Aluminito-site-normal.zip" enviado pelo cliente era idêntico ao estado atual (edições paralelas do cliente já no workspace: categorias "Guarda Corpo", "Shopping", "Vídeos", suporte a vídeo na galeria, selos "N mídias", nav "Avaliações", novas capas de projetos). Nada a aplicar; 16 fotos reais extras do workspace preservadas.
 
 - 2026-10-17: Projeto restaurado a partir do export do usuário (Aluminito-site-normal.zip): frontend completo (Header, Hero carrossel, Marquee, Sobre, Produtos, Catálogo de Cores + simulador IA, Projetos, Depoimentos, Contato, Footer, WhatsApp flutuante) e backend (reviews + /api/simular com cache) reinstalados; dependência lenis adicionada via yarn. 16 fotos faltantes no zip (projetos Porta de Giro comercial, Janela de correr, Divisória, Porta duas folhas, Portão de correr + base do simulador porta-branca) preenchidas com imagens de banco nas filenames exatas esperadas pelo código — SUBSTITUIR por fotos reais quando o cliente enviar. Verificado: curl /api/reviews (GET/POST 200), /api/simular com cache (200, imagem), site 1440px e 390px sem overflow, filtros + lightbox funcionando.
+- 2026-10-17: Painel administrativo de atendimentos concluído: login em `/admin/login` com JWT em cookies httpOnly, refresh token, logout, proteção por 5 tentativas/15 minutos, seed idempotente do admin e índices MongoDB. Todos os CTAs de WhatsApp enviam intenção para `POST /api/track`; `/admin` mostra total, hoje, melhor dia, gráfico 7/30 dias, ranking por categoria, itens mais escolhidos e últimos atendimentos. Credenciais registradas em `/app/memory/test_credentials.md`; 15 testes backend passaram e E2E do painel/landing foi validado.
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito
@@ -69,9 +72,10 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - P1: E-mail de contato / formulário com envio por e-mail além do WhatsApp
 - P1: Página de projeto individual com galeria expandida
 - P2: Blog/cases para SEO local ("esquadrias de alumínio Serra ES")
-- P2: Pixel/GA4 para medir conversão de cliques no WhatsApp
+- P2: GA4/Pixel opcional para complementar o painel interno de conversões
 
 ## Próximas Tarefas
 1. Receber fotos reais da empresa e trocar nos cards/galeria
 2. Confirmar horário de atendimento real
 3. Coletar depoimentos reais de clientes
+4. Acompanhar os primeiros cliques reais no painel e validar se as categorias estão úteis

@@ -200,8 +200,14 @@ export default function Admin() {
                             <h2 className="font-display text-lg font-semibold">
                                 Atendimentos por dia
                             </h2>
-                            <div className="mt-4 h-64">
-                                <ResponsiveContainer width="100%" height="100%">
+                            <div className="mt-4 h-64 min-w-0">
+                                <ResponsiveContainer
+                                    width="100%"
+                                    height="100%"
+                                    minWidth={0}
+                                    minHeight={256}
+                                    initialDimension={{ width: 800, height: 256 }}
+                                >
                                     <BarChart data={stats.por_dia}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
                                         <XAxis

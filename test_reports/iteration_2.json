@@ -1,0 +1,21 @@
+{
+  "iteration": 2,
+  "scope": "Correções dos dois avisos de baixa prioridade apontados na iteração 1 e revisão do arquivo de testes criado pelo testing agent",
+  "fixes": [
+    "ID duplicado 5 na galeria de projetos substituído por ID único 12",
+    "Categoria 'Janelas' com espaço final corrigida para casar com o filtro",
+    "ResponsiveContainer do gráfico admin recebeu dimensões mínimas/iniciais para evitar warning do Recharts",
+    "Configuração do logger movida para antes do startup seed",
+    "Credenciais removidas do código de teste; testes agora leem backend/.env e frontend/.env",
+    "Teste de login inválido passou a usar e-mail descartável para não bloquear o admin real"
+  ],
+  "verification": {
+    "pytest": "15/15 testes passaram em /app/backend/tests",
+    "frontend_build": "yarn build compilou com sucesso",
+    "browser": "Landing e /admin renderizaram em 1366px; gráfico com dimensão válida; console sem aviso de chave duplicada ou width/height -1",
+    "services": "backend, frontend e MongoDB rodando; /api/ e / retornaram HTTP 200",
+    "database": "DB_NAME=Gerência; 1 usuário admin; lead_events e login_attempts limpos após testes"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}
