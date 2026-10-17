@@ -17,7 +17,7 @@ const NAV = [
     { id: "produtos", label: "Produtos & Serviços" },
     { id: "cores", label: "Cores" },
     { id: "projetos", label: "Projetos" },
-    { id: "depoimentos", label: "Depoimentos" },
+    { id: "depoimentos", label: "Avaliações" },
     { id: "contato", label: "Contato" },
 ];
 

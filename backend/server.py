@@ -17,7 +17,10 @@ load_dotenv(ROOT_DIR / '.env')
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db_name = os.environ['DB_NAME']
+legacy_db_name = os.environ.get('LEGACY_DB_NAME', 'test_database')
+db = client[db_name]
+avaliacoes_collection = db['Avaliações']
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -36,6 +39,17 @@ class StatusCheck(BaseModel):
 
 class StatusCheckCreate(BaseModel):
     client_name: str
+
+class ReviewCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    role: str = Field(default="", max_length=80)
+    place: str = Field(default="", max_length=80)
+    rating: int = Field(ge=1, le=5)
+    text: str = Field(min_length=10, max_length=1000)
+
+class Review(ReviewCreate):
+    id: str
+    timestamp: str
 
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
@@ -66,6 +80,20 @@ async def get_status_checks():
     
     return status_checks
 
+@api_router.post("/reviews", response_model=Review, status_code=201)
+async def create_review(input: ReviewCreate):
+    review = {
+        "id": str(uuid.uuid4()),
+        **input.model_dump(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await avaliacoes_collection.insert_one(review)
+    return review
+
+@api_router.get("/reviews", response_model=List[Review])
+async def get_reviews():
+    reviews = await avaliacoes_collection.find({}, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    return reviews
 
 # --- Simulador de cores com IA (Gemini image editing) ---
 import base64
@@ -187,3 +215,15 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+@app.on_event("startup")
+async def migrate_legacy_reviews():
+    legacy_reviews = client[legacy_db_name]['reviews']
+    async for review in legacy_reviews.find({}, {"_id": 0}):
+        review.setdefault("id", str(uuid.uuid4()))
+        review.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+        await avaliacoes_collection.update_one(
+            {"id": review["id"]},
+            {"$setOnInsert": review},
+            upsert=True,
+        )

@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo", "Shopping", "Vídeos"];
 
 const PROJECTS = [
     {
@@ -72,7 +72,8 @@ const PROJECTS = [
             "/projects/Pele-de-vidro-2.jpg",
         ],
     },
-     id: 9,
+    {
+        id: 9,
         cat: "Guarda Corpo",
         title: "Guarda Corpo sob medida",
         img: "/projects/Guarda-corpo-1.jpg",
@@ -81,8 +82,9 @@ const PROJECTS = [
             "/projects/Guarda-corpo-2.jpg",
             "/projects/Guarda-corpo-3.jpg",
         ],
+    },
     {
-        id: 8,
+        id: 10,
         cat: "Banheiro",
         title: "Box de vidro e espelho sob medida",
         img: "/projects/Banheiro-1.jpg",
@@ -94,7 +96,13 @@ const PROJECTS = [
             "/projects/Banheiro-5.jpg",
             "/projects/Banheiro-6.jpg",
         ],
-},
+    },
+    {
+        id: 11,
+        cat: "Shopping",
+        title: "Shopping",
+        img: "/projects/Shopping-1.jpg",
+    },
 ];
 
 const slug = (c) =>
@@ -102,7 +110,12 @@ const slug = (c) =>
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, "-");
-const photosOf = (p) => (p.imgs ? p.imgs : [p.img]);
+const photosOf = (p) => (p.imgs ? p.imgs : p.img ? [p.img] : []);
+const mediaOf = (p) => {
+    if (p.media) return p.media;
+    const images = photosOf(p).map((src) => ({ type: "image", src }));
+    return p.video ? [...images, { type: "video", src: p.video }] : images;
+};
 
 export default function Projetos() {
     const [cat, setCat] = useState("Todos");
@@ -116,14 +129,14 @@ export default function Projetos() {
         ? filtered.findIndex((p) => p.id === lightbox.id)
         : -1;
 
-    const photos = lightbox ? photosOf(lightbox) : [];
+    const media = lightbox ? mediaOf(lightbox) : [];
 
-    const totalSlides = filtered.reduce((acc, p) => acc + photosOf(p).length, 0);
+    const totalSlides = filtered.reduce((acc, p) => acc + mediaOf(p).length, 0);
     const slidePos =
         currentIndex >= 0
             ? filtered
                   .slice(0, currentIndex)
-                  .reduce((acc, p) => acc + photosOf(p).length, 0) +
+                  .reduce((acc, p) => acc + mediaOf(p).length, 0) +
               angle +
               1
             : 0;
@@ -136,7 +149,7 @@ export default function Projetos() {
     const navigate = (dir) => {
         if (!lightbox) return;
         const nextAngle = angle + dir;
-        if (nextAngle >= 0 && nextAngle < photos.length) {
+        if (nextAngle >= 0 && nextAngle < media.length) {
             setAngle(nextAngle);
             return;
         }
@@ -144,7 +157,7 @@ export default function Projetos() {
             filtered[(currentIndex + dir + filtered.length) % filtered.length];
         if (!nextProject) return;
         setLightbox(nextProject);
-        setAngle(dir === 1 ? 0 : photosOf(nextProject).length - 1);
+        setAngle(dir === 1 ? 0 : mediaOf(nextProject).length - 1);
     };
 
     useEffect(() => {
@@ -214,18 +227,29 @@ export default function Projetos() {
                                     p.tall ? "sm:row-span-2" : ""
                                 }`}
                             >
-                                <img
-                                    src={p.img}
-                                    alt={p.title}
-                                    loading="lazy"
-                                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                />
-                                {p.imgs && (
+                                {(mediaOf(p).find((item) => item.type === "video") || mediaOf(p)[0])?.type === "video" ? (
+                                    <video
+                                        src={(mediaOf(p).find((item) => item.type === "video") || mediaOf(p)[0]).src}
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                        aria-label={`Prévia do vídeo: ${p.title}`}
+                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                ) : (
+                                    <img
+                                        src={mediaOf(p)[0]?.src || p.img}
+                                        alt={p.title}
+                                        loading="lazy"
+                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    />
+                                )}
+                                {mediaOf(p).length > 1 && (
                                     <span
                                         data-testid={`projeto-item-${p.id}-badge`}
                                         className="absolute right-3 top-3 rounded-full border border-white/20 bg-graphite/70 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur"
                                     >
-                                        {p.imgs.length} fotos
+                                        {mediaOf(p).length} mídias
                                     </span>
                                 )}
                                 <div className="absolute bottom-0 left-0 p-5">
@@ -290,15 +314,29 @@ export default function Projetos() {
                             className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <motion.img
-                                key={`${lightbox.id}-${angle}`}
-                                initial={{ opacity: 0, scale: 0.985 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.3, ease: EASE }}
-                                src={photos[angle]}
-                                alt={`${lightbox.title} — ângulo ${angle + 1}`}
-                                className="max-h-[80vh] w-full bg-graphite2 object-contain"
-                            />
+                            {media[angle]?.type === "video" ? (
+                                <motion.video
+                                    key={`${lightbox.id}-${angle}`}
+                                    initial={{ opacity: 0, scale: 0.985 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, ease: EASE }}
+                                    src={media[angle].src}
+                                    autoPlay
+                                    controls
+                                    playsInline
+                                    className="max-h-[80vh] w-full bg-graphite2 object-contain"
+                                />
+                            ) : (
+                                <motion.img
+                                    key={`${lightbox.id}-${angle}`}
+                                    initial={{ opacity: 0, scale: 0.985 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, ease: EASE }}
+                                    src={media[angle]?.src}
+                                    alt={`${lightbox.title} — ângulo ${angle + 1}`}
+                                    className="max-h-[80vh] w-full bg-graphite2 object-contain"
+                                />
+                            )}
                             {totalSlides > 1 && (
                                 <>
                                     <button
@@ -332,9 +370,9 @@ export default function Projetos() {
                                             {slidePos} de {totalSlides}
                                         </p>
                                     )}
-                                    {photos.length > 1 && (
+                                    {media.length > 1 && (
                                         <div className="mt-2 flex gap-1.5">
-                                            {photos.map((_, i) => (
+                                            {media.map((_, i) => (
                                                 <button
                                                     key={i}
                                                     data-testid={`lightbox-angle-${i}`}
