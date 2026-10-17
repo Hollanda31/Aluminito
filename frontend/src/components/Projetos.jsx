@@ -10,56 +10,87 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo", "Shopping"];
+const CATEGORIES = [
+    "Todos",
+    "Portas",
+    "Varandas",
+    "Janelas",
+    "Divisórias",
+    "Banheiro",
+    "Guarda Corpo",
+];
 
 const PROJECTS = [
     {
         id: 3,
         cat: "Portas",
-        title: "Porta de Giro comercial em Alumínio",
-        img: "/projects/porta-comercial-4.jpg",
+        title: "Porta de alumínio Digital",
+        img: "/projects/Porta-de-aluminio-digital-1.jpg",
         tall: true,
         imgs: [
-            "/projects/porta-comercial-1.jpg",
-            "/projects/porta-comercial-2.jpg",
-            "/projects/porta-comercial-3.jpg",
-            "/projects/porta-comercial-4.jpg",
-            "/projects/porta-comercial-5.jpg",
+            "/projects/Porta-de-aluminio-digital-1.jpg",
+            "/projects/Porta-de-aluminio-digital-2.jpg",
+            "/projects/Porta-de-aluminio-digital-3.jpg",
+        ],
+        video: "/projects/Porta-de-aluminio-digital.mp4",
+    },
+    {
+        id: 5,
+        cat: "Janelas ",
+        title: "Janelas de correr",
+        img: "/projects/Janela-de-correr-1.jpg",
+        tall: true,
+        imgs: [
+            "/projects/Janela-de-correr-1.jpg",
+            "/projects/Janela-de-correr-2.jpg",
+            "/projects/Janela-de-correr-3.jpg",
         ],
     },
-    { id: 4, cat: "Janelas", title: "Janela de correr em alumínio branco", img: "/projects/janela-correr-branca.jpg" },
+    {
+        id: 11,
+        cat: "Mural de Licença",
+        title: "Mural de licença em vidro",
+        img: "/projects/Mural-de-licenças-1.jpg",
+        tall: true,
+        imgs: [
+            "/projects/Mural-de-licenças-1.jpg",
+        ],
+        video: "/projects/Mural-de-licenças.mp4",
+    },
     {
         id: 5,
         cat: "Divisórias",
         title: "Divisória corporativa em vidro",
-        img: "/projects/divisoria-corporativa-1.jpg",
+        img: "/projects/Divisoria-corporativa-1.jpg",
         tall: true,
         imgs: [
-            "/projects/divisoria-corporativa-1.jpg",
-            "/projects/divisoria-corporativa-2.jpg",
+            "/projects/Divisoria-corporativa-1.jpg",
+            "/projects/Divisoria-corporativa-2.jpg",
+            "/projects/Divisoria-corporativa-3.jpg",
+            "/projects/Divisoria-corporativa-4.jpg",
+            "/projects/Divisoria-corporativa-5.jpg",
+            "/projects/Divisoria-corporativa-6.jpg",
         ],
     },
     {
         id: 6,
-        cat: "Portas",
-        title: "Porta de correr em duas folhas",
-        img: "/projects/porta-duas-folhas-1.jpg",
+        cat: "Porta de Emergência",
+        title: "Porta de Segurança",
+        img: "/projects/Porta-de-emergencia-1.jpg",
         imgs: [
-            "/projects/porta-duas-folhas-1.jpg",
-            "/projects/porta-duas-folhas-2.jpg",
-            "/projects/porta-duas-folhas-3.jpg",
-            "/projects/porta-duas-folhas-4.jpg",
+            "/projects/Porta-de-emergencia-1.jpg",
+            "/projects/Porta-de-emergencia-2.jpg",
         ],
     },
     {
         id: 7,
-        cat: "Portão de Garagem",
-        title: "Portão de correr em alumínio branco",
-        img: "/projects/portao-correr-branco.jpg",
+        cat: "Varandas",
+        title: "Varandas de correr em alumínio",
+        img: "/projects/Varanda-1.jpg",
         imgs: [
-            "/projects/portao-correr-branco.jpg",
-            "/projects/portao-correr-branco-2.jpg",
-            "/projects/portao-correr-branco-3.jpg",
+            "/projects/Varanda-1.jpg",
+            "/projects/Varanda-2.jpg",
+            "/projects/Varanda-3.jpg",
         ],
     },
     {
@@ -70,6 +101,7 @@ const PROJECTS = [
         imgs: [
             "/projects/Pele-de-vidro-1.jpg",
             "/projects/Pele-de-vidro-2.jpg",
+            "/projects/Pele-de-vidro-3.jpg",
         ],
     },
     {
@@ -95,18 +127,9 @@ const PROJECTS = [
             "/projects/Banheiro-4.jpg",
             "/projects/Banheiro-5.jpg",
             "/projects/Banheiro-6.jpg",
-        ],
-    },
-    {
-        id: 10,
-        cat: "Varandas",
-        title: "Varanda em vidro e alumínio sob medida",
-        img: "/projects/Varanda-1.jpg",
-        imgs: [
-            "/projects/Varanda-1.jpg",
-            "/projects/Varanda-2.jpg",
-            "/projects/Varanda-3.jpg",
-            "/projects/Varanda-4.jpg",
+            "/projects/Banheiro-7.jpg",
+            "/projects/Banheiro-8.jpg",
+            "/projects/Banheiro-9.jpg",
         ],
     },
 ];
@@ -116,11 +139,20 @@ const slug = (c) =>
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/\s+/g, "-");
+
 const photosOf = (p) => (p.imgs ? p.imgs : p.img ? [p.img] : []);
+
 const mediaOf = (p) => {
     if (p.media) return p.media;
-    const images = photosOf(p).map((src) => ({ type: "image", src }));
-    return p.video ? [...images, { type: "video", src: p.video }] : images;
+
+    const images = photosOf(p).map((src) => ({
+        type: "image",
+        src,
+    }));
+
+    return p.video
+        ? [...images, { type: "video", src: p.video }]
+        : images;
 };
 
 export default function Projetos() {
@@ -137,7 +169,11 @@ export default function Projetos() {
 
     const media = lightbox ? mediaOf(lightbox) : [];
 
-    const totalSlides = filtered.reduce((acc, p) => acc + mediaOf(p).length, 0);
+    const totalSlides = filtered.reduce(
+        (acc, p) => acc + mediaOf(p).length,
+        0
+    );
+
     const slidePos =
         currentIndex >= 0
             ? filtered
@@ -154,32 +190,44 @@ export default function Projetos() {
 
     const navigate = (dir) => {
         if (!lightbox) return;
+
         const nextAngle = angle + dir;
+
         if (nextAngle >= 0 && nextAngle < media.length) {
             setAngle(nextAngle);
             return;
         }
+
         const nextProject =
             filtered[(currentIndex + dir + filtered.length) % filtered.length];
+
         if (!nextProject) return;
+
         setLightbox(nextProject);
         setAngle(dir === 1 ? 0 : mediaOf(nextProject).length - 1);
     };
 
     useEffect(() => {
         if (!lightbox) return;
+
         const onKey = (e) => {
             if (e.key === "Escape") setLightbox(null);
             if (e.key === "ArrowRight") navigate(1);
             if (e.key === "ArrowLeft") navigate(-1);
         };
+
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lightbox, angle, cat]);
 
     return (
-        <section id="projetos" data-testid="projetos-section" className="bg-white py-24 sm:py-32">
+        <section
+            id="projetos"
+            data-testid="projetos-section"
+            className="bg-white py-24 sm:py-32"
+        >
             <div className="mx-auto max-w-7xl px-5 sm:px-8">
                 <Reveal className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                     <div>
@@ -190,13 +238,17 @@ export default function Projetos() {
                             Um portfólio feito de detalhes milimétricos.
                         </h2>
                     </div>
+
                     <p className="max-w-sm text-sm leading-relaxed text-slate-600 sm:text-base">
                         Residências e obras comerciais em Serra, Vitória e
                         região — clique para ampliar cada projeto.
                     </p>
                 </Reveal>
 
-                <div className="mt-10 flex flex-wrap gap-2" data-testid="projetos-filters">
+                <div
+                    className="mt-10 flex flex-wrap gap-2"
+                    data-testid="projetos-filters"
+                >
                     {CATEGORIES.map((c) => (
                         <button
                             key={c}
@@ -219,55 +271,68 @@ export default function Projetos() {
                     className="mt-8 grid auto-rows-[220px] grid-cols-1 gap-4 sm:auto-rows-[240px] sm:grid-cols-2 lg:grid-cols-3"
                 >
                     <AnimatePresence mode="popLayout">
-                        {filtered.map((p) => (
-                            <motion.button
-                                key={p.id}
-                                layout
-                                initial={{ opacity: 0, scale: 0.94 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.94 }}
-                                transition={{ duration: 0.4, ease: EASE }}
-                                onClick={() => openProject(p)}
-                                data-testid={`projeto-item-${p.id}`}
-                                className={`group relative overflow-hidden rounded-2xl text-left ${
-                                    p.tall ? "sm:row-span-2" : ""
-                                }`}
-                            >
-                                {(mediaOf(p).find((item) => item.type === "video") || mediaOf(p)[0])?.type === "video" ? (
-                                    <video
-                                        src={(mediaOf(p).find((item) => item.type === "video") || mediaOf(p)[0]).src}
-                                        muted
-                                        playsInline
-                                        preload="metadata"
-                                        aria-label={`Prévia do vídeo: ${p.title}`}
-                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                    />
-                                ) : (
-                                    <img
-                                        src={mediaOf(p)[0]?.src || p.img}
-                                        alt={p.title}
-                                        loading="lazy"
-                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                    />
-                                )}
-                                {mediaOf(p).length > 1 && (
-                                    <span
-                                        data-testid={`projeto-item-${p.id}-badge`}
-                                        className="absolute right-3 top-3 rounded-full border border-white/20 bg-graphite/70 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur"
-                                    >
-                                        {mediaOf(p).length} mídias
-                                    </span>
-                                )}
-                                <div className="absolute bottom-0 left-0 p-5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-azul [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
-                                        {p.cat}
-                                    </span>
-                                    <p className="mt-1 font-display text-base font-semibold text-white [text-shadow:0_1px_10px_rgba(15,23,42,0.9)]">
-                                        {p.title}
-                                    </p>
-                                </div>
-                            </motion.button>
-                        ))}
+                        {filtered.map((p) => {
+                            const projectMedia = mediaOf(p);
+                            const coverMedia =
+                                projectMedia.find(
+                                    (item) => item.type === "video"
+                                ) || projectMedia[0];
+
+                            return (
+                                <motion.button
+                                    key={p.id}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.94 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.94 }}
+                                    transition={{
+                                        duration: 0.4,
+                                        ease: EASE,
+                                    }}
+                                    onClick={() => openProject(p)}
+                                    data-testid={`projeto-item-${p.id}`}
+                                    className={`group relative overflow-hidden rounded-2xl text-left ${
+                                        p.tall ? "sm:row-span-2" : ""
+                                    }`}
+                                >
+                                    {coverMedia?.type === "video" ? (
+                                        <video
+                                            src={coverMedia.src}
+                                            muted
+                                            playsInline
+                                            preload="metadata"
+                                            aria-label={`Prévia do vídeo: ${p.title}`}
+                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                        />
+                                    ) : (
+                                        <img
+                                            src={coverMedia?.src || p.img}
+                                            alt={p.title}
+                                            loading="lazy"
+                                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                        />
+                                    )}
+
+                                    {projectMedia.length > 1 && (
+                                        <span
+                                            data-testid={`projeto-item-${p.id}-badge`}
+                                            className="absolute right-3 top-3 rounded-full border border-white/20 bg-graphite/70 px-3 py-1 text-[10px] font-semibold text-white backdrop-blur"
+                                        >
+                                            {projectMedia.length} mídias
+                                        </span>
+                                    )}
+
+                                    <div className="absolute bottom-0 left-0 p-5">
+                                        <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-azul [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
+                                            {p.cat}
+                                        </span>
+                                        <p className="mt-1 font-display text-base font-semibold text-white [text-shadow:0_1px_10px_rgba(15,23,42,0.9)]">
+                                            {p.title}
+                                        </p>
+                                    </div>
+                                </motion.button>
+                            );
+                        })}
                     </AnimatePresence>
                 </motion.div>
 
@@ -277,6 +342,7 @@ export default function Projetos() {
                         className="relative overflow-hidden rounded-3xl bg-graphite px-8 py-12 sm:px-12"
                     >
                         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-azul/20 blur-[100px]" />
+
                         <div className="relative flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
                             <div>
                                 <h3 className="font-display text-2xl font-bold text-white sm:text-3xl">
@@ -287,6 +353,7 @@ export default function Projetos() {
                                     sob medida, sem compromisso.
                                 </p>
                             </div>
+
                             <a
                                 data-testid="projetos-cta-whatsapp"
                                 href={waOrcamento}
@@ -343,6 +410,7 @@ export default function Projetos() {
                                     className="max-h-[80vh] w-full bg-graphite2 object-contain"
                                 />
                             )}
+
                             {totalSlides > 1 && (
                                 <>
                                     <button
@@ -353,6 +421,7 @@ export default function Projetos() {
                                     >
                                         <ChevronLeft size={22} />
                                     </button>
+
                                     <button
                                         data-testid="lightbox-next-button"
                                         onClick={() => navigate(1)}
@@ -363,11 +432,13 @@ export default function Projetos() {
                                     </button>
                                 </>
                             )}
+
                             <div className="flex items-center justify-between gap-4 bg-graphite px-6 py-4">
                                 <div>
                                     <p className="font-display text-sm font-semibold text-white sm:text-base">
                                         {lightbox.title}
                                     </p>
+
                                     {totalSlides > 1 && currentIndex >= 0 && (
                                         <p
                                             data-testid="lightbox-counter"
@@ -376,6 +447,7 @@ export default function Projetos() {
                                             {slidePos} de {totalSlides}
                                         </p>
                                     )}
+
                                     {media.length > 1 && (
                                         <div className="mt-2 flex gap-1.5">
                                             {media.map((_, i) => (
@@ -383,7 +455,7 @@ export default function Projetos() {
                                                     key={i}
                                                     data-testid={`lightbox-angle-${i}`}
                                                     onClick={() => setAngle(i)}
-                                                    aria-label={`Ver ângulo ${i + 1}`}
+                                                    aria-label={`Ver mídia ${i + 1}`}
                                                     className={`h-1.5 rounded-full transition-all duration-300 ${
                                                         i === angle
                                                             ? "w-6 bg-azul"
@@ -394,11 +466,13 @@ export default function Projetos() {
                                         </div>
                                     )}
                                 </div>
+
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.22em] text-azul">
                                     {lightbox.cat}
                                 </span>
                             </div>
                         </motion.div>
+
                         <button
                             data-testid="lightbox-close-button"
                             onClick={() => setLightbox(null)}
