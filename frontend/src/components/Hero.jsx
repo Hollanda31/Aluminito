@@ -4,6 +4,7 @@ import { ArrowDown, History } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
 import { IMAGES, waOrcamento } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -127,6 +128,7 @@ export default function Hero() {
                 >
                     <a
                         data-testid="hero-whatsapp-button"
+                        onClick={() => trackClique("Geral", "Capa - Fazer Orçamento Gratuito", "hero")}
                         href={waOrcamento}
                         target="_blank"
                         rel="noreferrer"

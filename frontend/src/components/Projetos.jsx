@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waOrcamento } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -356,6 +357,7 @@ export default function Projetos() {
 
                             <a
                                 data-testid="projetos-cta-whatsapp"
+                                onClick={() => trackClique("Geral", "Banner - Quer um projeto parecido", "projetos")}
                                 href={waOrcamento}
                                 target="_blank"
                                 rel="noreferrer"

@@ -1,11 +1,13 @@
 import { motion } from "framer-motion";
 import { WhatsAppIcon } from "@/components/icons";
 import { waOrcamento } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 export default function FloatingWhatsApp() {
     return (
         <motion.a
             data-testid="floating-whatsapp-button"
+            onClick={() => trackClique("Geral", "Botão flutuante WhatsApp", "flutuante")}
             href={waOrcamento}
             target="_blank"
             rel="noreferrer"

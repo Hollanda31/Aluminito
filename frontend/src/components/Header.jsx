@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
 import { scrollToId } from "@/lib/scroll";
 import { waOrcamento } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 const LINKS = [
     { id: "inicio", label: "Início" },
@@ -55,6 +56,7 @@ export default function Header() {
                 </nav>
                 <a
                     data-testid="header-cta-orcamento"
+                        onClick={() => trackClique("Geral", "Menu - Solicitar Orçamento", "header")}
                     href={waOrcamento}
                     target="_blank"
                     rel="noreferrer"
@@ -94,6 +96,7 @@ export default function Header() {
                             ))}
                             <a
                                 data-testid="mobile-cta-orcamento"
+                                onClick={() => trackClique("Geral", "Menu mobile - Solicitar Orçamento", "header")}
                                 href={waOrcamento}
                                 target="_blank"
                                 rel="noreferrer"

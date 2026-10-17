@@ -1,6 +1,7 @@
 import Reveal from "@/components/Reveal";
 import { ArrowUpRight } from "lucide-react";
 import { waMessage } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 const img = (id, w = 1200) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
@@ -80,6 +81,7 @@ export default function Produtos() {
                         >
                             <a
                                 data-testid={`produto-card-${p.n}`}
+                                onClick={() => trackClique("Produtos & Serviços", p.title, "produtos")}
                                 href={waMessage(
                                     `Olá! Gostaria de solicitar um orçamento de ${p.title}.`,
                                 )}

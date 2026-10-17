@@ -4,6 +4,7 @@ import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waMessage } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 import { startScroll, stopScroll } from "@/lib/scroll";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
@@ -312,6 +313,7 @@ export default function CatalogoCores() {
                                         </button>
                                         <a
                                             data-testid="cor-btn-whatsapp"
+                                            onClick={() => trackClique(cor.arq.startsWith("COD.") ? "Efeito Madeira" : "Pintura Eletrostática", `${cor.nome} (${cor.codigo})`, "catalogo")}
                                             href={waMessage(
                                                 `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
                                             )}
@@ -439,6 +441,7 @@ export default function CatalogoCores() {
                                             </button>
                                             <a
                                                 data-testid="sim-whatsapp"
+                                                onClick={() => trackClique("Simulador", `${tipoNome} - ${cor.nome} (${cor.codigo})`, "simulador")}
                                                 href={waMessage(
                                                     `Olá! Fiz uma simulação no site: ${tipoNome} na cor ${cor.nome} (${cor.codigo}). Gostaria de um orçamento.`,
                                                 )}

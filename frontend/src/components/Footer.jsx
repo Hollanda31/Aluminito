@@ -2,6 +2,7 @@ import { Clock, Instagram, MapPin } from "lucide-react";
 import Logo from "@/components/Logo";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
+import { trackClique } from "@/lib/track";
 import {
     ADDRESS,
     INSTAGRAM_HANDLE,
@@ -76,6 +77,7 @@ export default function Footer() {
                             <li>
                                 <a
                                     data-testid="footer-whatsapp"
+                                    onClick={() => trackClique("Geral", "Rodapé - WhatsApp", "footer")}
                                     href={WA_LINK}
                                     target="_blank"
                                     rel="noreferrer"

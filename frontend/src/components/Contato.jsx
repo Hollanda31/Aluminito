@@ -10,6 +10,7 @@ import {
     WA_LINK,
     waMessage,
 } from "@/lib/site";
+import { trackClique } from "@/lib/track";
 
 const CIDADES = [
     "Serra",
@@ -39,6 +40,7 @@ export default function Contato() {
     const submit = (e) => {
         e.preventDefault();
         const msg = `Olá! Vim pelo site da Aluminito e gostaria de solicitar um orçamento.\n\nNome: ${form.nome}\nTelefone: ${form.telefone}\nCidade: ${form.cidade}\nTipo de projeto: ${form.tipo}`;
+        trackClique("Formulário", `${form.tipo} - ${form.cidade}`, "contato");
         window.open(waMessage(msg), "_blank");
     };
 
@@ -65,6 +67,7 @@ export default function Contato() {
                     <div className="mt-9 space-y-4">
                         <a
                             data-testid="contato-whatsapp-link"
+                            onClick={() => trackClique("Geral", "Contato - WhatsApp", "contato")}
                             href={WA_LINK}
                             target="_blank"
                             rel="noreferrer"
