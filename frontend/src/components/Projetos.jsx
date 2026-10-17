@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1];
 const img = (id, w = 1000) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
 
-const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo", "Shopping", "Vídeos"];
+const CATEGORIES = ["Todos", "Portas", "Portão de Garagem", "Janelas", "Divisórias", "Banheiro", "Guarda Corpo", "Shopping"];
 
 const PROJECTS = [
     {
@@ -98,10 +98,16 @@ const PROJECTS = [
         ],
     },
     {
-        id: 11,
-        cat: "Shopping",
-        title: "Shopping",
-        img: "/projects/Shopping-1.jpg",
+        id: 10,
+        cat: "Varandas",
+        title: "Varanda em vidro e alumínio sob medida",
+        img: "/projects/Varanda-1.jpg",
+        imgs: [
+            "/projects/Varanda-1.jpg",
+            "/projects/Varanda-2.jpg",
+            "/projects/Varanda-3.jpg",
+            "/projects/Varanda-4.jpg",
+        ],
     },
 ];
 

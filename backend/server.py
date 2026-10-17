@@ -18,7 +18,7 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db_name = os.environ['DB_NAME']
-legacy_db_name = os.environ.get('LEGACY_DB_NAME', 'test_database')
+legacy_db_name = os.environ.get('LEGACY_DB_NAME')
 db = client[db_name]
 avaliacoes_collection = db['Avaliações']
 
@@ -218,12 +218,18 @@ async def shutdown_db_client():
 
 @app.on_event("startup")
 async def migrate_legacy_reviews():
-    legacy_reviews = client[legacy_db_name]['reviews']
-    async for review in legacy_reviews.find({}, {"_id": 0}):
-        review.setdefault("id", str(uuid.uuid4()))
-        review.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
-        await avaliacoes_collection.update_one(
-            {"id": review["id"]},
-            {"$setOnInsert": review},
-            upsert=True,
-        )
+    if not legacy_db_name or legacy_db_name == db_name:
+        return
+    try:
+        legacy_reviews = client[legacy_db_name]['reviews']
+        async for review in legacy_reviews.find({}, {"_id": 0}):
+            review.setdefault("id", str(uuid.uuid4()))
+            review.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+            await avaliacoes_collection.update_one(
+                {"id": review["id"]},
+                {"$setOnInsert": review},
+                upsert=True,
+            )
+        logger.info("Migração de avaliações legadas concluída")
+    except Exception:
+        logger.exception("Migração de avaliações legadas falhou (ignorada, startup segue)")
