@@ -67,10 +67,16 @@ class Review(ReviewCreate):
     id: str
     timestamp: str
     status: Literal["visible", "hidden"] = "visible"
+    featured: bool = False
+    featured_at: str | None = None
 
 
 class ReviewStatusUpdate(BaseModel):
     status: Literal["visible", "hidden"]
+
+
+class ReviewFeaturedUpdate(BaseModel):
+    featured: bool
 
 
 # Rotas básicas
@@ -121,6 +127,8 @@ async def create_review(input: ReviewCreate):
         "id": str(uuid.uuid4()),
         **input.model_dump(),
         "status": "visible",
+        "featured": False,
+        "featured_at": None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -135,7 +143,11 @@ async def get_reviews():
             {"status": {"$ne": "hidden"}},
             {"_id": 0},
         )
-        .sort("timestamp", -1)
+        .sort([
+            ("featured", -1),
+            ("featured_at", -1),
+            ("timestamp", -1),
+        ])
         .to_list(100)
     )
     return reviews
@@ -146,7 +158,11 @@ async def admin_list_reviews(request: Request):
     await get_current_user(request)
     reviews = (
         await db.reviews.find({}, {"_id": 0})
-        .sort("timestamp", -1)
+        .sort([
+            ("featured", -1),
+            ("featured_at", -1),
+            ("timestamp", -1),
+        ])
         .to_list(500)
     )
     return reviews
@@ -176,6 +192,40 @@ async def admin_update_review_status(
     return result
 
 
+@api_router.patch(
+    "/admin/reviews/{review_id}/featured",
+    response_model=Review,
+)
+async def admin_update_review_featured(
+    review_id: str,
+    input: ReviewFeaturedUpdate,
+    request: Request,
+):
+    await get_current_user(request)
+    result = await db.reviews.find_one_and_update(
+        {"id": review_id},
+        {
+            "$set": {
+                "featured": input.featured,
+                "featured_at": (
+                    datetime.now(timezone.utc).isoformat()
+                    if input.featured
+                    else None
+                ),
+            }
+        },
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="Avaliacao nao encontrada",
+        )
+    return result
+
+
+
 @api_router.delete("/admin/reviews/{review_id}", status_code=204)
 async def admin_delete_review(review_id: str, request: Request):
     await get_current_user(request)
@@ -198,29 +248,22 @@ from emergentintegrations.llm.chat import (
 
 SIM_TIPOS = {
     "porta": {
-        "base": "/app/frontend/public/projects/porta-branca.jpg",
+        "base": "/app/frontend/public/projects/Porta-de-aluminio-digital-1.jpg",
         "desc": "aluminum entrance door with a large glass panel",
     },
     "janela": {
-        "base": "/app/frontend/public/projects/janela-correr-branca.jpg",
+        "base": "/app/frontend/public/projects/Janela-de-correr-1.jpg",
         "desc": "aluminum sliding window",
     },
     "outros": {
-        "base": "/app/frontend/public/projects/porta-duas-folhas-1.jpg",
-        "desc": (
-            "aluminum sliding door (porta de correr) with large glass "
-            "panels and a slatted aluminum panel"
-        ),
+        "base": "/app/frontend/public/projects/Varanda-1.jpg",
+        "desc": "aluminum sliding door (porta de correr) with large glass panels and a slatted aluminum panel",
     },
     "persiana": {
         "base": "/app/backend/base_persiana.jpg",
-        "desc": (
-            "aluminum venetian blind (persiana) covering a window "
-            "in a modern interior"
-        ),
+        "desc": "aluminum venetian blind (persiana) covering a window in a modern interior",
     },
 }
-
 SIM_CORES_DIR = "/app/frontend/public/cores"
 SIM_CACHE_DIR = Path("/app/backend/simulacao_cache")
 SIM_CACHE_DIR.mkdir(exist_ok=True)

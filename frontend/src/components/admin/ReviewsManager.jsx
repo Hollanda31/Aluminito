@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, RefreshCw, Star, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pin, PinOff, RefreshCw, Star, Trash2 } from "lucide-react";
 import { authApi, withAuthRefresh } from "@/lib/auth";
 
 const FILTROS = [
     { id: "todas", label: "Todas" },
     { id: "visible", label: "Visíveis" },
     { id: "hidden", label: "Ocultas" },
+    { id: "featured", label: "Destaques" },
 ];
 
 const fmtData = (iso) =>
