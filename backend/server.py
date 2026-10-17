@@ -131,15 +131,15 @@ from emergentintegrations.llm.chat import (
 
 SIM_TIPOS = {
     "porta": {
-        "base": "/app/frontend/public/projects/porta-branca.jpg",
+        "base": "/app/frontend/public/projects/Porta-de-aluminio-digital-1.jpg",
         "desc": "aluminum entrance door with a large glass panel",
     },
     "janela": {
-        "base": "/app/frontend/public/projects/janela-correr-branca.jpg",
+        "base": "/app/frontend/public/projects/Janela-de-correr-2.jpg",
         "desc": "aluminum sliding window",
     },
     "outros": {
-        "base": "/app/frontend/public/projects/porta-duas-folhas-1.jpg",
+        "base": "/app/frontend/public/projects/Varanda-2.jpg",
         "desc": (
             "aluminum sliding door (porta de correr) with large glass "
             "panels and a slatted aluminum panel"
@@ -246,6 +246,12 @@ async def simular_cor(req: SimulacaoRequest):
 
         with open(base_path, "wb") as f:
             f.write(base64.b64decode(imgs0[0]["data"]))
+
+    if not os.path.isfile(base_path):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Foto-base da simulação não encontrada para o tipo '{req.tipo}'.",
+        )
 
     acab_txt = (
         "wood grain finish texture"
