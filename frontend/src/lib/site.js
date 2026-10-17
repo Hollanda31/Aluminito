@@ -19,6 +19,6 @@ const u = (id, w) =>
 
 export const IMAGES = {
     hero: "/projects/sacada-envidracada.jpg",
-    sobreMain: u("photo-1780429483856-aefcf0ab9e26", 1600),
+    sobreMain: "/hero/loja-atual.jpg",
     sobreSecond: u("photo-1766603636700-e9d80473f40f", 1200),
 };

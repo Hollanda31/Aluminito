@@ -1,0 +1,12 @@
+{
+  "iteration": 8,
+  "scope": "Edição visual solicitada: trocar imagem principal da seção Sobre",
+  "change": "A imagem Unsplash foi substituída pela foto real da fachada atual da Aluminito em /hero/loja-atual.jpg; alt text atualizado",
+  "verification": {
+    "frontend_build": "yarn build compilou com sucesso",
+    "browser_layout": "Imagem carregada e enquadrada em 375px, 768px e 1366px",
+    "console": "Sem erros ou warnings relevantes"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}

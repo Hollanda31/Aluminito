@@ -156,7 +156,7 @@ export default function Hero() {
                 >
                     <History size={14} className="text-azul" />
                     <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/85">
-                        Acervo histórico · Há mais de 40 anos no ramo
+                        Imagens Históricas · Desde 1984 atuando no ramo
                     </span>
                 </motion.div>
 

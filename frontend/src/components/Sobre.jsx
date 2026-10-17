@@ -74,7 +74,7 @@ export default function Sobre() {
                             >
                                 <img
                                     src={IMAGES.sobreMain}
-                                    alt="Equipe técnica instalando esquadria de alumínio"
+                                    alt="Fachada atual da loja Aluminito"
                                     loading="lazy"
                                     className="h-[320px] w-full object-cover transition-transform duration-700 hover:scale-[1.03] sm:h-[460px]"
                                 />
