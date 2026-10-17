@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waOrcamento } from "@/lib/site";
+import { optimizedImage, optimizedSrcSet } from "@/lib/images";
 import { trackClique } from "@/lib/track";
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -308,7 +309,10 @@ export default function Projetos() {
                                         />
                                     ) : (
                                         <img
-                                            src={coverMedia?.src || p.img}
+                                            src={optimizedImage(coverMedia?.src || p.img, 768)}
+                                            srcSet={optimizedSrcSet(coverMedia?.src || p.img)}
+                                            sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
+                                            decoding="async"
                                             alt={p.title}
                                             loading="lazy"
                                             className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -408,7 +412,10 @@ export default function Projetos() {
                                     initial={{ opacity: 0, scale: 0.985 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.3, ease: EASE }}
-                                    src={media[angle]?.src}
+                                    src={optimizedImage(media[angle]?.src, 1600)}
+                                    srcSet={optimizedSrcSet(media[angle]?.src)}
+                                    sizes="(max-width: 896px) 100vw, 80vw"
+                                    decoding="async"
                                     alt={`${lightbox.title} — ângulo ${angle + 1}`}
                                     className="max-h-[80vh] w-full bg-graphite2 object-contain"
                                 />

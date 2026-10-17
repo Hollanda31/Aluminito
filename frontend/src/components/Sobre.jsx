@@ -1,6 +1,7 @@
 import Reveal from "@/components/Reveal";
 import { Check, Clock, Gem, Ruler, ShieldCheck } from "lucide-react";
 import { IMAGES } from "@/lib/site";
+import { optimizedImage, optimizedSrcSet } from "@/lib/images";
 
 const DIFERENCIAIS = [
     {
@@ -73,7 +74,10 @@ export default function Sobre() {
                                 className="overflow-hidden rounded-3xl"
                             >
                                 <img
-                                    src={IMAGES.sobreMain}
+                                    src={optimizedImage(IMAGES.sobreMain, 1600)}
+                                    srcSet={optimizedSrcSet(IMAGES.sobreMain)}
+                                    sizes="(max-width: 1023px) 100vw, 58vw"
+                                    decoding="async"
                                     alt="Fachada atual da loja Aluminito"
                                     loading="lazy"
                                     className="h-[320px] w-full object-cover transition-transform duration-700 hover:scale-[1.03] sm:h-[460px]"

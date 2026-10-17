@@ -4,6 +4,7 @@ import { ArrowDown, History } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
 import { IMAGES, waOrcamento } from "@/lib/site";
+import { optimizedImage, optimizedSrcSet } from "@/lib/images";
 import { trackClique } from "@/lib/track";
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -69,7 +70,10 @@ export default function Hero() {
                     <motion.img
                         key={slide}
                         data-testid="hero-bg-slide"
-                        src={SLIDES[slide]}
+                        src={optimizedImage(SLIDES[slide], 1600)}
+                        srcSet={optimizedSrcSet(SLIDES[slide])}
+                        sizes="100vw"
+                        decoding="async"
                         alt="Aluminito — projetos e história em esquadrias"
                         initial={{ opacity: 0, scale: 1 }}
                         animate={{ opacity: 1, scale: 1.06 }}
