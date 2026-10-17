@@ -1,0 +1,17 @@
+{
+  "iteration": 7,
+  "scope": "Botão de download do app visível no cabeçalho em celular e tablet",
+  "changes": [
+    "Adicionada variante compacta header-mobile ao InstallAppButton",
+    "Botão de download agora aparece ao lado do menu hambúrguer em larguras abaixo de 1024px",
+    "Versão completa no menu mobile e botão Baixar App no desktop foram preservados"
+  ],
+  "verification": {
+    "frontend_build": "yarn build compilou com sucesso",
+    "browser_layout": "Botão visível em 375px, 768px e 1366px, sem quebra do cabeçalho",
+    "interaction": "Clique no botão mobile abriu o modal de instruções de instalação",
+    "console": "Sem erros ou warnings relevantes"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}

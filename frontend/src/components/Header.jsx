@@ -68,14 +68,17 @@ export default function Header() {
                         Solicitar Orçamento
                     </a>
                 </div>
-                <button
-                    data-testid="header-menu-toggle"
-                    className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white lg:hidden"
-                    onClick={() => setOpen((v) => !v)}
-                    aria-label={open ? "Fechar menu" : "Abrir menu"}
-                >
-                    {open ? <X size={20} /> : <Menu size={20} />}
-                </button>
+                <div className="flex items-center gap-2 lg:hidden">
+                    <InstallAppButton variant="header-mobile" />
+                    <button
+                        data-testid="header-menu-toggle"
+                        className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white"
+                        onClick={() => setOpen((v) => !v)}
+                        aria-label={open ? "Fechar menu" : "Abrir menu"}
+                    >
+                        {open ? <X size={20} /> : <Menu size={20} />}
+                    </button>
+                </div>
             </div>
 
             <AnimatePresence>

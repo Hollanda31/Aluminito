@@ -56,6 +56,8 @@ const STEPS = {
 const STYLES = {
     header:
         "inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-3 text-sm font-medium text-white transition-colors duration-200 hover:border-white/50 hover:bg-white/5",
+    "header-mobile":
+        "grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/15 text-white transition-colors duration-200 hover:border-white/40 hover:bg-white/5",
     mobile:
         "flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 px-5 py-3.5 text-sm font-medium text-white transition-colors hover:bg-white/5",
     footer:
@@ -87,10 +89,12 @@ export default function InstallAppButton({ variant = "header", onDone }) {
                 className={STYLES[variant]}
             >
                 <Download size={variant === "footer" ? 16 : 17} className={variant === "footer" ? "text-azul" : ""} />
-                {variant === "header" ? (
-                    <span className="hidden xl:inline">Baixar App</span>
-                ) : (
-                    <span>Baixar o App</span>
+                {variant !== "header-mobile" && (
+                    variant === "header" ? (
+                        <span className="hidden xl:inline">Baixar App</span>
+                    ) : (
+                        <span>Baixar o App</span>
+                    )
                 )}
             </button>
 
