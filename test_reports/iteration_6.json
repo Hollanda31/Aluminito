@@ -1,0 +1,13 @@
+{
+  "iteration": 6,
+  "scope": "Correção final do warning React na aba Simulador após a iteração 5",
+  "fix": "Substituído o select nativo de quantidade de cores por botões Top 5/10/15/20, eliminando o caso em que a instrumentação inseria span dentro de option",
+  "verification": {
+    "frontend_build": "yarn build compilou com sucesso",
+    "browser": "Aba Simulador abriu autenticada em 1366px e os botões Top 5/10/15/20 apareceram corretamente",
+    "console": "Sem validateDOMNesting, span dentro de option, erros ou warnings relevantes",
+    "database": "Nenhum dado alterado; 13 lead_events existentes preservados"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}

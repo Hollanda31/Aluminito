@@ -232,18 +232,28 @@ export default function SimulacoesStats() {
                                     </div>
                                 ) : (
                                     <div className="mt-4 flex flex-wrap items-center gap-2">
-                                        <select
-                                            value={top}
-                                            onChange={(e) => setTop(Number(e.target.value))}
+                                        <div
+                                            className="flex flex-wrap gap-1.5"
+                                            role="group"
                                             aria-label="Quantidade de cores"
-                                            className="rounded-lg border border-white/15 bg-graphite px-3 py-2 text-xs text-white"
                                         >
                                             {[5, 10, 15, 20].map((n) => (
-                                                <option key={n} value={n}>
-                                                    Top {n} cores
-                                                </option>
+                                                <button
+                                                    key={n}
+                                                    type="button"
+                                                    data-testid={`admin-pregerar-top-${n}`}
+                                                    onClick={() => setTop(n)}
+                                                    aria-pressed={top === n}
+                                                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
+                                                        top === n
+                                                            ? "border-azul bg-azul text-white"
+                                                            : "border-white/15 text-silver hover:border-white/40"
+                                                    }`}
+                                                >
+                                                    Top {n}
+                                                </button>
                                             ))}
-                                        </select>
+                                        </div>
                                         {confirmando ? (
                                             <>
                                                 <button

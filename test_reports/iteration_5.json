@@ -1,0 +1,29 @@
+{
+  "summary": "Testei backend (pytest 19/19 passaram) e frontend (fluxo PWA + destaque manual de avaliações + regressão das abas Admin). Ambos OK: Header.jsx compila e renderiza, botão Baixar App aparece (data-testid=install-app-header no desktop e install-app-mobile no menu mobile), destaque manual coloca a avaliação primeiro no GET público /api/reviews, filtro Destaques do admin funciona, remover destaque restaura ordem, abas Visão geral/Atendimentos/Simulador/Avaliações carregam sem erro de console.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Simulador (SimulacoesStats.jsx linha ~241)", "issues": ["Warning React de hidratação: <span data-ve-dynamic> dentro de <option> (não quebra UX mas polui console). Vem dos arrays mapeados no <select> de quantidade. Pode ser causado por instrumentação do build/visual-editor, não bloqueante."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/backend/tests/test_auth_tracking.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py já ultrapassa 1200 linhas e usa @app.on_event depreciado; considerar migrar para lifespan handler e dividir em módulos.",
+    "InstallAppButton: variant desktop usa testid install-app-header (não install-app-desktop); documentar/renomear para evitar confusão em futuros testes.",
+    "Hidratação warning em SimulacoesStats indica <span> dentro de <option>; se vier de instrumentação, considerar excluir SimulacoesStats da transformação para evitar poluição do console."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@aluminito.com.br / A1u!2026#Mit0-Qd9z (de /app/memory/test_credentials.md)",
+  "seed_data_creation": "Criadas e removidas 2 reviews TEST (TEST Destaque UI A/B) via /api/reviews + cleanup via DELETE admin. Pytest também cria/limpa dados TEST_ via fixture scope=session. 13 lead_events do usuário preservados.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend 19/19 OK. Destaque manual (PATCH /api/admin/reviews/{id}/featured) e ordenação pública validados. PWA: use data-testid=install-app-header (desktop) e install-app-mobile (menu mobile aberto por header-menu-toggle). Botão Baixar App no desktop esconde texto abaixo do xl (1280px). SimulacoesStats tem warning React (option > span) que não é bloqueante."
+}
