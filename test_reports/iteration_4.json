@@ -1,0 +1,11 @@
+{
+  "iteration": 4,
+  "scope": "Verificação visual complementar da aba Avaliações após a iteração 3",
+  "verification": {
+    "browser_layout": "Aba Avaliações verificada com uma avaliação temporária em 375px, 768px e 1366px; cards, filtros e botões ficaram legíveis e sem overflow",
+    "console": "Sem avisos de chave duplicada, Recharts ou erros no console",
+    "cleanup": "Avaliação temporária usada no teste visual foi excluída pelo endpoint administrativo; reviews, lead_events e login_attempts ficaram sem dados de teste"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}

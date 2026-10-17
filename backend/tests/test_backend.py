@@ -183,6 +183,33 @@ def test_admin_review_moderation(auth_client, client):
             auth_client.delete(f"{API}/admin/reviews/{review_id}")
 
 
+def test_public_reviews_includes_legacy_and_visible(auth_client, client):
+    """Legacy reviews (no status field) should be returned by public GET; hidden should not."""
+    import pymongo
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    mc = pymongo.MongoClient(os.environ["MONGO_URL"])
+    coll = mc[os.environ["DB_NAME"]].reviews
+    legacy_id = f"TEST_legacy_{_uuid.uuid4()}"
+    coll.insert_one({
+        "id": legacy_id,
+        "name": "TEST Legacy",
+        "role": "",
+        "place": "",
+        "rating": 4,
+        "text": "Avaliacao antiga sem campo status.",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        # intentionally no "status" field
+    })
+    try:
+        r = client.get(f"{API}/reviews")
+        assert r.status_code == 200
+        ids = [x["id"] for x in r.json()]
+        assert legacy_id in ids, "Legacy review (no status) should appear in public GET"
+    finally:
+        coll.delete_one({"id": legacy_id})
+
+
 def test_logout(auth_client):
     r = auth_client.post(f"{API}/auth/logout")
     assert r.status_code == 200
@@ -200,6 +227,8 @@ def cleanup_test_data():
         db = mc[os.environ["DB_NAME"]]
         res = db.lead_events.delete_many({"grupo": {"$regex": "^TEST_"}})
         print(f"Cleaned up {res.deleted_count} test lead_events")
+        res2 = db.reviews.delete_many({"name": {"$regex": "^TEST"}})
+        print(f"Cleaned up {res2.deleted_count} test reviews")
         db.login_attempts.delete_many({"identifier": {"$regex": "bruteforce_test|invalid_login_test"}})
     except Exception as e:
         print(f"cleanup warn: {e}")
