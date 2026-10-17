@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi, withAuthRefresh } from "@/lib/auth";
 import ReviewsManager from "@/components/admin/ReviewsManager";
+import Atendimentos from "@/components/admin/Atendimentos";
+import SimulacoesStats from "@/components/admin/SimulacoesStats";
 import {
     Bar,
     BarChart,
@@ -129,9 +131,11 @@ export default function Admin() {
             </header>
 
             <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-                <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
+                <div className="mb-6 flex flex-wrap gap-2 border-b border-white/10 pb-4">
                     {[
                         { id: "visao", label: "Visão geral" },
+                        { id: "atendimentos", label: "Atendimentos" },
+                        { id: "simulador", label: "Simulador" },
                         { id: "avaliacoes", label: "Avaliações" },
                     ].map((aba) => (
                         <button
@@ -363,6 +367,8 @@ export default function Admin() {
                 ) : null}
                 </div>
 
+                {secao === "atendimentos" && <Atendimentos />}
+                {secao === "simulador" && <SimulacoesStats />}
                 {secao === "avaliacoes" && <ReviewsManager />}
             </main>
         </div>

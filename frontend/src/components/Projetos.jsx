@@ -114,6 +114,7 @@ const PROJECTS = [
             "/projects/Guarda-corpo-1.jpg",
             "/projects/Guarda-corpo-2.jpg",
             "/projects/Guarda-corpo-3.jpg",
+            "/projects/Guarda-corpo-4.jpg",
         ],
     },
     {

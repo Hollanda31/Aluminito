@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
@@ -108,12 +108,23 @@ export default function CatalogoCores() {
     const [loading, setLoading] = useState(false);
     const [erro, setErro] = useState(null);
     const [msgIdx, setMsgIdx] = useState(0);
+    const [progresso, setProgresso] = useState(0);
+    const imgCache = useRef(new Map()); // simulações já vistas nesta visita
+    const reqId = useRef(0); // ignora respostas de pedidos antigos
+    const abortRef = useRef(null);
 
     const lista = tab === "pintura" ? PINTURA : MADEIRA;
 
     useEffect(() => {
         if (!loading) return;
         const t = setInterval(() => setMsgIdx((i) => (i + 1) % LOAD_MSGS.length), 2600);
+        return () => clearInterval(t);
+    }, [loading]);
+
+    useEffect(() => {
+        if (!loading) return;
+        setProgresso(4);
+        const t = setInterval(() => setProgresso((p) => p + (95 - p) * 0.07), 500);
         return () => clearInterval(t);
     }, [loading]);
 
@@ -132,6 +143,8 @@ export default function CatalogoCores() {
     }, [modalAberto]);
 
     const fechar = () => {
+        reqId.current += 1;
+        abortRef.current?.abort();
         setCor(null);
         setStep("cor");
         setTipo(null);
@@ -141,28 +154,60 @@ export default function CatalogoCores() {
     };
 
     const gerar = async (corSel, tipoSel) => {
-        setLoading(true);
+        const id = ++reqId.current;
+        abortRef.current?.abort();
         setErro(null);
-        setImg(null);
         setMsgIdx(0);
+
+        // já vista nesta visita: aparece na hora, sem falar com o servidor
+        const key = `${tipoSel}|${corSel.arq}`;
+        const guardada = imgCache.current.get(key);
+        if (guardada) {
+            setImg(guardada);
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        setImg(null);
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
+        const limite = setTimeout(() => ctrl.abort(), 120000);
         try {
             const r = await fetch(`${BACKEND}/api/simular`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                signal: ctrl.signal,
                 body: JSON.stringify({
                     tipo: tipoSel,
                     cor_arq: corSel.arq,
                     cor_nome: corSel.nome,
+                    cor_codigo: corSel.codigo,
                     acabamento: corSel.arq.startsWith("COD.") ? "madeira" : "pintura",
                 }),
             });
             const d = await r.json();
             if (!r.ok) throw new Error(d.detail || "Falha ao gerar");
-            setImg(d.image);
+
+            // o servidor devolve o endereço da imagem (WebP leve);
+            // baixa antes de mostrar para não aparecer a tela em branco
+            const url = d.url.startsWith("http") ? d.url : `${BACKEND}${d.url}`;
+            await new Promise((resolve) => {
+                const im = new Image();
+                im.onload = resolve;
+                im.onerror = resolve;
+                im.src = url;
+            });
+            if (id !== reqId.current) return;
+            imgCache.current.set(key, url);
+            setProgresso(100);
+            setImg(url);
         } catch (e) {
+            if (id !== reqId.current) return;
             setErro("Não consegui gerar a simulação agora. Toque em tentar novamente.");
         } finally {
-            setLoading(false);
+            clearTimeout(limite);
+            if (id === reqId.current) setLoading(false);
         }
     };
 
@@ -386,7 +431,13 @@ export default function CatalogoCores() {
                                             >
                                                 <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-slate-200 border-t-azul" />
                                                 <p className="text-sm font-medium text-slate-600">{LOAD_MSGS[msgIdx]}</p>
-                                                <p className="text-xs text-slate-400">A primeira geração pode levar até 30 segundos</p>
+                                                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-200">
+                                                    <div
+                                                        className="h-full rounded-full bg-azul transition-all duration-500"
+                                                        style={{ width: `${progresso}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-slate-400">Cores novas levam cerca de 15 segundos. As próximas aparecem na hora.</p>
                                             </div>
                                         )}
                                         {erro && !loading && (
