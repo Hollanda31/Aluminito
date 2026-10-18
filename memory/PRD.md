@@ -64,6 +64,7 @@ Criar uma Landing Page moderna, elegante e focada em conversão de orçamentos p
 - 2026-10-17: Destaque manual de avaliações: admin pode destacar/remover destaque, filtrar "Destaques" e ver selo no card; destacadas aparecem primeiro no site, com a destacada mais recentemente no topo (`featured`/`featured_at`). Corrigidos erros de compilação em alterações paralelas de PWA/header e ajustado o seletor do painel Simulador para eliminar warning de HTML. E2E validado com PWA, abas Atendimentos/Simulador/Avaliações e 19 testes backend.
 - 2026-10-17: Botão de download do app adicionado diretamente ao cabeçalho mobile/tablet (ícone compacto ao lado do menu), mantendo a versão completa no menu mobile e no desktop. Verificado em 375px, 768px e 1366px; modal de instalação abre corretamente.
 - 2026-10-17: Imagem principal da seção Sobre substituída pela foto real da fachada atual da loja (`/hero/loja-atual.jpg`), com texto alternativo atualizado. Verificado carregamento e enquadramento em 375px, 768px e 1366px.
+- 2026-10-17: Otimização de imagens principais: 38 fotos de Hero/Projetos ganharam derivados WebP responsivos 768w e 1600w sem sobrescrever originais; Hero, Sobre, cards e lightbox passaram a usar `srcSet`/`sizes`. Peso local dos originais referenciados (~94,6 MB) reduzido para ~1,2 MB no perfil mobile e ~4,4 MB no desktop. E2E validou seleção correta, filtros, lightbox, PWA e zero 404s.
 
 ## Conteúdo a Substituir (dados de exemplo)
 - Fotos de produtos/projetos: imagens de banco (Unsplash) como placeholder — substituir por fotos reais da Aluminito

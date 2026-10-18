@@ -1,38 +1,28 @@
+import asyncio
+import csv
+import io
 import os
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import List, Literal
+from typing import List, Literal, Optional
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-import asyncio
 import base64
-import csv
-import functools
-import io
 import re
-import time
-from zoneinfo import ZoneInfo
 
 import bcrypt
 import jwt
 from bson import ObjectId
-from fastapi import (
-    FastAPI,
-    APIRouter,
-    HTTPException,
-    Query,
-    Request,
-    Response,
-)
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from PIL import Image
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from pymongo import ReturnDocument
 from starlette.middleware.cors import CORSMiddleware
@@ -260,6 +250,11 @@ from emergentintegrations.llm.chat import (
     ImageContent,
 )
 
+try:  # Pillow e opcional: sem ele o cache continua em PNG (mais pesado)
+    from PIL import Image as PILImage
+except ImportError:  # pragma: no cover
+    PILImage = None
+
 
 SIM_TIPOS = {
     "porta": {
@@ -282,25 +277,63 @@ SIM_TIPOS = {
 SIM_CORES_DIR = "/app/frontend/public/cores"
 SIM_CACHE_DIR = Path("/app/backend/simulacao_cache")
 SIM_CACHE_DIR.mkdir(exist_ok=True)
-SIM_CACHE_URL = "/api/simulacao_img"  # imagens do cache servidas como arquivo
-SIM_TIMEOUT_S = 90  # tempo maximo de UMA chamada a IA
-SIM_MAX_PARALELO = 3  # quantas chamadas a IA ao mesmo tempo
-SIM_TENTATIVAS = 2  # tenta de novo se a IA nao devolver imagem
+SIM_CACHE_EXTS = (".webp", ".png")
+
+# Geracoes em andamento (chave = nome do cache): cliques repetidos na mesma
+# cor/tipo esperam a mesma geracao em vez de gastar creditos duas vezes.
+_SIM_INFLIGHT: dict = {}
+# No maximo 3 geracoes simultaneas na IA (protege creditos e tempo de resposta).
+_SIM_SEM = asyncio.Semaphore(3)
+_SIM_BG_TASKS: set = set()
 
 
 class SimulacaoRequest(BaseModel):
     tipo: str
     cor_arq: str
-    cor_nome: str = Field(max_length=80)
-    cor_codigo: str = Field(default="", max_length=40)
+    cor_nome: str
     acabamento: str = "pintura"
+    # "url" devolve so o link da imagem (rapido); "base64" mantem o formato antigo
+    formato: str = "base64"
 
 
-# As imagens base e as amostras de cor nao mudam: le do disco uma vez so.
-@functools.lru_cache(maxsize=128)
 def _img_b64(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
+
+
+def _sim_limpa_nome(nome: str) -> str:
+    return re.sub(r"[^\w .\-/]", "", nome or "")[:60].strip() or "cor"
+
+
+def _sim_stem(tipo: str, cor_arq: str) -> str:
+    return re.sub(r"[^\w.\-]", "_", f"{tipo}_{cor_arq.rsplit('.', 1)[0]}")
+
+
+def _sim_cache_find(stem: str):
+    for ext in SIM_CACHE_EXTS:
+        path = SIM_CACHE_DIR / f"{stem}{ext}"
+        if path.is_file():
+            return path
+    return None
+
+
+def _sim_cache_save(stem: str, img_bytes: bytes) -> Path:
+    """Salva em WebP (uns 4x menor que PNG) e de forma atomica."""
+    if PILImage is not None:
+        try:
+            im = PILImage.open(io.BytesIO(img_bytes)).convert("RGB")
+            final = SIM_CACHE_DIR / f"{stem}.webp"
+            tmp = SIM_CACHE_DIR / f"{stem}.webp.tmp"
+            im.save(tmp, "WEBP", quality=88, method=4)
+            os.replace(tmp, final)
+            return final
+        except Exception:
+            logger.exception("Falha ao converter simulacao para WebP; salvando PNG")
+    final = SIM_CACHE_DIR / f"{stem}.png"
+    tmp = SIM_CACHE_DIR / f"{stem}.png.tmp"
+    tmp.write_bytes(img_bytes)
+    os.replace(tmp, final)
+    return final
 
 
 def _new_chat():
@@ -319,283 +352,537 @@ def _new_chat():
     return chat
 
 
-_sim_locks: dict[str, asyncio.Lock] = {}
-_sim_sem: asyncio.Semaphore | None = None
+async def _sim_gerar(req: SimulacaoRequest, cor_path: str, stem: str) -> Path:
+    base_path = SIM_TIPOS[req.tipo]["base"]
 
+    async with _SIM_SEM:
+        if req.tipo == "persiana" and not os.path.isfile(base_path):
+            chat0 = _new_chat()
+            _, imgs0 = await chat0.send_message_multimodal_response(
+                UserMessage(
+                    text=(
+                        "Photorealistic photo of a modern matte WHITE aluminum "
+                        "venetian blind (persiana horizontal de aluminio branca), "
+                        "half open, covering a large window in a bright modern "
+                        "living room, natural daylight, high quality"
+                    )
+                )
+            )
+            if not imgs0:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Falha ao gerar imagem base da persiana",
+                )
+            with open(base_path, "wb") as f:
+                f.write(base64.b64decode(imgs0[0]["data"]))
 
-def _semaforo() -> asyncio.Semaphore:
-    global _sim_sem
-    if _sim_sem is None:
-        _sim_sem = asyncio.Semaphore(SIM_MAX_PARALELO)
-    return _sim_sem
+        acab_txt = (
+            "wood grain finish texture"
+            if req.acabamento == "madeira"
+            else "solid painted finish"
+        )
+        prompt = (
+            f"The first image is a photo of an "
+            f"{SIM_TIPOS[req.tipo]['desc']}. "
+            "The second image is a color swatch of an aluminum profile finish. "
+            f"Repaint ONLY the aluminum frame, profiles, slats and metal parts "
+            f"to exactly match the swatch ({acab_txt}, finish name: "
+            f"{req.cor_nome}). "
+            "Keep the glass, the background, the lighting, the reflections "
+            "and every other element completely unchanged. Photorealistic "
+            "result, high quality."
+        )
 
-
-def _cache_key(tipo: str, cor_arq: str) -> str:
-    # Mesmo padrao de nome do cache antigo (sem a extensao)
-    return re.sub(r"[^\w.\-]", "_", f"{tipo}_{cor_arq.rsplit('.', 1)[0]}")
-
-
-def _arquivo_em_cache(key: str) -> Path | None:
-    # .webp = novo formato (leve); .png = cache antigo, continua valendo
-    for ext in (".webp", ".png"):
-        p = SIM_CACHE_DIR / f"{key}{ext}"
-        if p.is_file():
-            return p
-    return None
-
-
-def _salvar_webp(img_bytes: bytes, destino: Path) -> None:
-    tmp = destino.with_name(destino.name + ".tmp")
-    with Image.open(io.BytesIO(img_bytes)) as im:
-        im.convert("RGB").save(tmp, format="WEBP", quality=88)
-    tmp.replace(destino)  # troca atomica: ninguem le arquivo pela metade
-
-
-async def _garantir_base_persiana(base_path: str) -> None:
-    if os.path.isfile(base_path):
-        return
-    chat0 = _new_chat()
-    _, imgs0 = await chat0.send_message_multimodal_response(
-        UserMessage(
-            text=(
-                "Photorealistic photo of a modern matte WHITE aluminum "
-                "venetian blind (persiana horizontal de aluminio branca), "
-                "half open, covering a large window in a bright modern "
-                "living room, natural daylight, high quality"
+        chat = _new_chat()
+        _, images = await chat.send_message_multimodal_response(
+            UserMessage(
+                text=prompt,
+                file_contents=[
+                    ImageContent(_img_b64(base_path)),
+                    ImageContent(_img_b64(cor_path)),
+                ],
             )
         )
-    )
-    if not imgs0:
+
+    if not images:
         raise HTTPException(
             status_code=502,
-            detail="Falha ao gerar imagem base da persiana",
+            detail="A IA nao retornou imagem. Tente novamente.",
         )
-    with open(base_path, "wb") as f:
-        f.write(base64.b64decode(imgs0[0]["data"]))
+    return _sim_cache_save(stem, base64.b64decode(images[0]["data"]))
 
 
-async def _chamar_ia(
-    tipo: str, cor_arq: str, cor_nome: str, acabamento: str
-) -> bytes:
-    base_path = SIM_TIPOS[tipo]["base"]
-    if tipo == "persiana":
-        await _garantir_base_persiana(base_path)
-    cor_path = os.path.join(SIM_CORES_DIR, cor_arq)
-
-    acab_txt = (
-        "wood grain finish texture"
-        if acabamento == "madeira"
-        else "solid painted finish"
-    )
-    prompt = (
-        f"The first image is a photo of an "
-        f"{SIM_TIPOS[tipo]['desc']}. "
-        "The second image is a color swatch of an aluminum profile finish. "
-        f"Repaint ONLY the aluminum frame, profiles, slats and metal parts "
-        f"to exactly match the swatch ({acab_txt}, finish name: "
-        f"{cor_nome}). "
-        "Keep the glass, the background, the lighting, the reflections "
-        "and every other element completely unchanged. Photorealistic "
-        "result, high quality."
-    )
-
-    for tentativa in range(1, SIM_TENTATIVAS + 1):
-        chat = _new_chat()
-        _, images = await asyncio.wait_for(
-            chat.send_message_multimodal_response(
-                UserMessage(
-                    text=prompt,
-                    file_contents=[
-                        ImageContent(_img_b64(base_path)),
-                        ImageContent(_img_b64(cor_path)),
-                    ],
-                )
-            ),
-            timeout=SIM_TIMEOUT_S,
-        )
-        if images:
-            return base64.b64decode(images[0]["data"])
-        logger.warning(
-            "IA sem imagem (%s/%s) tipo=%s cor=%s",
-            tentativa,
-            SIM_TENTATIVAS,
-            tipo,
-            cor_arq,
-        )
-    raise HTTPException(
-        status_code=502,
-        detail="A IA nao retornou imagem. Tente novamente.",
-    )
+async def _sim_gerar_ou_aguardar(
+    req: SimulacaoRequest, cor_path: str, stem: str
+) -> Path:
+    task = _SIM_INFLIGHT.get(stem)
+    if task is None:
+        task = asyncio.create_task(_sim_gerar(req, cor_path, stem))
+        _SIM_INFLIGHT[stem] = task
+        task.add_done_callback(lambda _t, k=stem: _SIM_INFLIGHT.pop(k, None))
+    # shield: se o cliente desistir, a geracao termina e fica no cache
+    return await asyncio.shield(task)
 
 
-async def gerar_simulacao(
-    tipo: str, cor_arq: str, cor_nome: str, acabamento: str
-) -> tuple[str, bool, int]:
-    """Devolve (nome_do_arquivo, veio_do_cache, milissegundos)."""
-    inicio = time.monotonic()
-
-    def ms() -> int:
-        return int((time.monotonic() - inicio) * 1000)
-
-    key = _cache_key(tipo, cor_arq)
-    hit = _arquivo_em_cache(key)
-    if hit:
-        return hit.name, True, ms()
-
-    # Uma trava por combinacao: se 5 pessoas pedirem a mesma cor ao mesmo
-    # tempo, so UMA chamada a IA e feita (as outras esperam e reaproveitam).
-    lock = _sim_locks.setdefault(key, asyncio.Lock())
-    async with lock:
-        hit = _arquivo_em_cache(key)
-        if hit:
-            return hit.name, True, ms()
-        async with _semaforo():
-            img_bytes = await _chamar_ia(tipo, cor_arq, cor_nome, acabamento)
-        destino = SIM_CACHE_DIR / f"{key}.webp"
-        await asyncio.to_thread(_salvar_webp, img_bytes, destino)
-    return destino.name, False, ms()
-
-
-@api_router.post("/simular")
-async def simular_cor(req: SimulacaoRequest):
-    if req.tipo not in SIM_TIPOS:
-        raise HTTPException(
-            status_code=400,
-            detail="Tipo de projeto invalido",
-        )
-
-    cor_arq = os.path.basename(req.cor_arq)
-
-    if not re.fullmatch(r"[\w.\-]+", cor_arq):
-        raise HTTPException(
-            status_code=400,
-            detail="Arquivo de cor invalido",
-        )
-
-    if not os.path.isfile(os.path.join(SIM_CORES_DIR, cor_arq)):
-        raise HTTPException(
-            status_code=404,
-            detail="Cor nao encontrada",
-        )
-
-    acabamento = "madeira" if req.acabamento == "madeira" else "pintura"
-
+async def _sim_log(req: SimulacaoRequest, cor_arq: str, cached: bool) -> None:
+    """Registra cada simulacao (alimenta 'Cores mais simuladas' no painel)."""
     try:
-        arquivo, cache_hit, ms = await gerar_simulacao(
-            req.tipo, cor_arq, req.cor_nome, acabamento
-        )
-    except HTTPException:
-        raise
-    except asyncio.TimeoutError:
-        raise HTTPException(
-            status_code=504,
-            detail="A IA demorou demais. Tente novamente.",
-        )
-    except Exception:
-        logger.exception("Erro ao gerar simulacao")
-        raise HTTPException(
-            status_code=502,
-            detail="Nao foi possivel gerar a simulacao agora.",
-        )
-
-    # Registro para o ranking "cores mais simuladas". Nunca derruba a resposta.
-    try:
-        await db.simulacoes.insert_one(
+        await db.simulation_events.insert_one(
             {
                 "id": str(uuid.uuid4()),
                 "tipo": req.tipo,
                 "cor_arq": cor_arq,
                 "cor_nome": req.cor_nome,
-                "cor_codigo": req.cor_codigo,
-                "acabamento": acabamento,
-                "cache_hit": cache_hit,
-                "ms": ms,
+                "acabamento": req.acabamento,
+                "cached": cached,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
     except Exception:
-        logger.exception("Falha ao registrar simulacao")
-
-    return {"url": f"{SIM_CACHE_URL}/{arquivo}", "cached": cache_hit}
+        logger.warning("Nao foi possivel registrar a simulacao", exc_info=True)
 
 
-class CachedStatic(StaticFiles):
-    """Serve o cache de simulacoes e deixa o navegador guardar por 1 dia."""
-
-    async def get_response(self, path, scope):
-        resp = await super().get_response(path, scope)
-        if resp.status_code == 200:
-            resp.headers["Cache-Control"] = "public, max-age=86400"
-        return resp
-
-
-# --- Pre-geracao das cores mais pedidas (painel admin) ---
-_pregen = {"rodando": False, "total": 0, "feitas": 0, "erros": 0}
-_bg_tasks: set = set()
+def _sim_validar(req: SimulacaoRequest):
+    if req.tipo not in SIM_TIPOS:
+        raise HTTPException(status_code=400, detail="Tipo de projeto invalido")
+    cor_arq = os.path.basename(req.cor_arq)
+    if not re.fullmatch(r"[\w.\-]+", cor_arq):
+        raise HTTPException(status_code=400, detail="Arquivo de cor invalido")
+    cor_path = os.path.join(SIM_CORES_DIR, cor_arq)
+    if not os.path.isfile(cor_path):
+        raise HTTPException(status_code=404, detail="Cor nao encontrada")
+    return cor_arq, cor_path
 
 
-class PreGerarRequest(BaseModel):
-    top: int = Field(default=10, ge=1, le=30)
-    tipos: list[str] | None = None
+@api_router.post("/simular")
+async def simular_cor(req: SimulacaoRequest):
+    cor_arq, cor_path = _sim_validar(req)
+    req.cor_nome = _sim_limpa_nome(req.cor_nome)
+    stem = _sim_stem(req.tipo, cor_arq)
+
+    path = _sim_cache_find(stem)
+    cached = path is not None
+    if path is None:
+        path = await _sim_gerar_ou_aguardar(req, cor_path, stem)
+
+    await _sim_log(req, cor_arq, cached)
+
+    url = f"/api/simular/img/{path.name}"
+    if req.formato == "url":
+        return {"url": url, "cached": cached}
+    mime = "image/webp" if path.suffix == ".webp" else "image/png"
+    return {
+        "image": f"data:{mime};base64," + _img_b64(path),
+        "url": url,
+        "cached": cached,
+    }
 
 
-async def _rodar_pregen(itens: list[dict]) -> None:
-    async def um(it: dict) -> None:
-        try:
-            await gerar_simulacao(**it)
-        except Exception:
-            _pregen["erros"] += 1
-            logger.exception("Falha na pre-geracao: %s", it)
-        finally:
-            _pregen["feitas"] += 1
+@api_router.get("/simular/img/{nome}")
+async def simular_imagem(nome: str):
+    nome = os.path.basename(nome)
+    if not re.fullmatch(r"[\w.\-]+", nome) or not nome.lower().endswith(
+        SIM_CACHE_EXTS
+    ):
+        raise HTTPException(status_code=404, detail="Imagem nao encontrada")
+    path = SIM_CACHE_DIR / nome
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Imagem nao encontrada")
+    media = "image/webp" if path.suffix.lower() == ".webp" else "image/png"
+    return FileResponse(
+        path,
+        media_type=media,
+        headers={"Cache-Control": "public, max-age=604800"},
+    )
 
+
+@api_router.get("/simular/disponiveis")
+async def simular_disponiveis(tipo: str):
+    """Cores que ja tem simulacao pronta (resposta instantanea) para o tipo."""
+    if tipo not in SIM_TIPOS:
+        raise HTTPException(status_code=400, detail="Tipo de projeto invalido")
     try:
-        await asyncio.gather(*(um(it) for it in itens))
-    finally:
-        _pregen["rodando"] = False
+        arquivos = sorted(os.listdir(SIM_CORES_DIR))
+    except OSError:
+        return {"cores": []}
+    return {
+        "cores": [
+            a for a in arquivos if _sim_cache_find(_sim_stem(tipo, a)) is not None
+        ]
+    }
+
+
+class PrewarmRequest(BaseModel):
+    top: int = Field(default=6, ge=1, le=20)
+    tipos: List[str] = Field(default_factory=lambda: list(SIM_TIPOS))
+
+
+async def _sim_prewarm_worker(combos: List[SimulacaoRequest]) -> None:
+    for req in combos:
+        try:
+            cor_arq, cor_path = _sim_validar(req)
+            stem = _sim_stem(req.tipo, cor_arq)
+            if _sim_cache_find(stem) is None:
+                await _sim_gerar_ou_aguardar(req, cor_path, stem)
+        except Exception:
+            logger.warning("Pre-geracao falhou para %s", req.cor_arq, exc_info=True)
+
+
+@api_router.post("/admin/simular/prewarm")
+async def simular_prewarm(input: PrewarmRequest, request: Request):
+    """Pre-gera (em segundo plano) as cores mais simuladas que ainda nao
+    estao em cache. Cada imagem nova consome creditos da IA."""
+    validate_origin(request)
+    await get_current_user(request)
+    tipos = [t for t in input.tipos if t in SIM_TIPOS]
+    top = (
+        await db.simulation_events.aggregate(
+            [
+                {
+                    "$group": {
+                        "_id": "$cor_arq",
+                        "total": {"$sum": 1},
+                        "cor_nome": {"$first": "$cor_nome"},
+                        "acabamento": {"$first": "$acabamento"},
+                    }
+                },
+                {"$sort": {"total": -1}},
+                {"$limit": input.top},
+            ]
+        )
+        .to_list(input.top)
+    )
+    combos = []
+    for c in top:
+        arq = os.path.basename(c["_id"] or "")
+        if not arq or not os.path.isfile(os.path.join(SIM_CORES_DIR, arq)):
+            continue
+        for t in tipos:
+            if _sim_cache_find(_sim_stem(t, arq)) is None:
+                combos.append(
+                    SimulacaoRequest(
+                        tipo=t,
+                        cor_arq=arq,
+                        cor_nome=_sim_limpa_nome(c.get("cor_nome") or arq),
+                        acabamento=c.get("acabamento") or "pintura",
+                    )
+                )
+    if combos:
+        task = asyncio.create_task(_sim_prewarm_worker(combos))
+        _SIM_BG_TASKS.add(task)
+        task.add_done_callback(_SIM_BG_TASKS.discard)
+    return {"agendadas": len(combos)}
 
 
 # --- Rastreamento de atendimentos (cliques para o WhatsApp) ---
-STATUS_LEAD = [
-    "novo",
-    "em_conversa",
-    "orcamento_enviado",
-    "fechado",
-    "perdido",
-]
-StatusLead = Literal[
-    "novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"
-]
-TZ_BR = ZoneInfo("America/Sao_Paulo")
+LEAD_STATUS = ["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
+LeadStatus = Literal["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
+DADOS_CAMPOS = (
+    "nome",
+    "telefone",
+    "cidade",
+    "tipo",
+    "situacao",
+    "medidas",
+    "cor",
+    "prazo",
+    "obs",
+)
+BR_TZ = ZoneInfo("America/Sao_Paulo")
 
 
 class TrackEvent(BaseModel):
     grupo: str = Field(min_length=1, max_length=80)
     item: str = Field(min_length=1, max_length=200)
     origem: str = Field(default="", max_length=80)
-    # Campos do formulario de orcamento (nome, telefone, cidade, obra...)
-    dados: dict[str, str] = Field(default_factory=dict)
+    # Dados do formulario de orcamento (so os campos conhecidos sao aceitos)
+    dados: dict = Field(default_factory=dict)
 
     @field_validator("dados")
     @classmethod
-    def limitar_dados(cls, v: dict) -> dict:
-        if len(v) > 15:
-            raise ValueError("Dados demais")
-        return {str(k)[:40]: str(val)[:500] for k, val in v.items()}
+    def _limpa_dados(cls, v):
+        limpo = {}
+        for chave in DADOS_CAMPOS:
+            val = v.get(chave)
+            if isinstance(val, str) and val.strip():
+                limpo[chave] = val.strip()[:400]
+        return limpo
 
 
 @api_router.post("/track", status_code=201)
 async def track_event(input: TrackEvent):
-    await db.lead_events.insert_one(
-        {
-            "id": str(uuid.uuid4()),
-            **input.model_dump(),
-            "status": "novo",
-            "nota": "",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-    )
+    doc = {
+        "id": str(uuid.uuid4()),
+        **input.model_dump(),
+        "status": "novo",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    if not doc["dados"]:
+        doc.pop("dados")
+    await db.lead_events.insert_one(doc)
     return {"ok": True}
+
+
+class LeadUpdate(BaseModel):
+    status: Optional[LeadStatus] = None
+    nota: Optional[str] = Field(default=None, max_length=500)
+    # True = o botao "Pedir avaliacao" foi usado (guarda a data)
+    avaliacao_pedida: Optional[bool] = None
+
+
+def _lead_out(doc: dict) -> dict:
+    doc.setdefault("status", "novo")
+    return doc
+
+
+def _lead_filtro(periodo: str = "mes", status: str = "", q: str = "") -> dict:
+    filtro: dict = {}
+    dias = {"semana": 7, "mes": 30, "trimestre": 90}.get(periodo)
+    if dias:
+        inicio = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) - timedelta(days=dias - 1)
+        filtro["timestamp"] = {"$gte": inicio.isoformat()}
+    if status in LEAD_STATUS:
+        if status == "novo":
+            # eventos antigos nao tem o campo status: contam como "novo"
+            filtro["$and"] = [
+                {"$or": [{"status": "novo"}, {"status": {"$exists": False}}]}
+            ]
+        else:
+            filtro["status"] = status
+    q = (q or "").strip()
+    if q:
+        rx = {"$regex": re.escape(q[:60]), "$options": "i"}
+        filtro.setdefault("$and", []).append(
+            {
+                "$or": [
+                    {"item": rx},
+                    {"grupo": rx},
+                    {"origem": rx},
+                    {"nota": rx},
+                    {"dados.nome": rx},
+                    {"dados.telefone": rx},
+                    {"dados.cidade": rx},
+                ]
+            }
+        )
+    return filtro
+
+
+@api_router.get("/admin/leads")
+async def admin_leads(
+    request: Request,
+    periodo: str = "mes",
+    status: str = "",
+    q: str = "",
+    limit: int = 50,
+    skip: int = 0,
+):
+    await get_current_user(request)
+    limit = max(1, min(limit, 200))
+    skip = max(0, skip)
+    filtro = _lead_filtro(periodo, status, q)
+    total = await db.lead_events.count_documents(filtro)
+    itens = (
+        await db.lead_events.find(filtro, {"_id": 0})
+        .sort("timestamp", -1)
+        .skip(skip)
+        .limit(limit)
+        .to_list(limit)
+    )
+    return {"total": total, "itens": [_lead_out(i) for i in itens]}
+
+
+def _csv_seguro(valor) -> str:
+    """Evita que o Excel execute formulas vindas de texto digitado no site."""
+    texto = "" if valor is None else str(valor)
+    if texto[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + texto
+    return texto
+
+
+@api_router.get("/admin/leads/export.csv")
+async def admin_leads_export(
+    request: Request,
+    periodo: str = "mes",
+    status: str = "",
+    q: str = "",
+):
+    await get_current_user(request)
+    itens = (
+        await db.lead_events.find(_lead_filtro(periodo, status, q), {"_id": 0})
+        .sort("timestamp", -1)
+        .to_list(10000)
+    )
+    rotulos = {
+        "novo": "Novo",
+        "em_conversa": "Em conversa",
+        "orcamento_enviado": "Orçamento enviado",
+        "fechado": "Fechado",
+        "perdido": "Perdido",
+    }
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";", lineterminator="\r\n")
+    w.writerow(
+        [
+            "Data",
+            "Hora",
+            "Status",
+            "Categoria",
+            "Item",
+            "Origem",
+            "Nome",
+            "Telefone",
+            "Cidade",
+            "Tipo de projeto",
+            "Situação da obra",
+            "Medidas",
+            "Cor desejada",
+            "Prazo",
+            "Observações",
+            "Nota interna",
+        ]
+    )
+    for ev in itens:
+        try:
+            ts = datetime.fromisoformat(ev["timestamp"]).astimezone(BR_TZ)
+            data, hora = ts.strftime("%d/%m/%Y"), ts.strftime("%H:%M")
+        except Exception:
+            data, hora = ev.get("timestamp", ""), ""
+        d = ev.get("dados") or {}
+        linha = [
+            data,
+            hora,
+            rotulos.get(ev.get("status", "novo"), "Novo"),
+            ev.get("grupo"),
+            ev.get("item"),
+            ev.get("origem"),
+            d.get("nome"),
+            d.get("telefone"),
+            d.get("cidade"),
+            d.get("tipo"),
+            d.get("situacao"),
+            d.get("medidas"),
+            d.get("cor"),
+            d.get("prazo"),
+            d.get("obs"),
+            ev.get("nota"),
+        ]
+        w.writerow([_csv_seguro(c) for c in linha])
+    corpo = ("\ufeff" + buf.getvalue()).encode("utf-8")  # BOM: Excel abre com acentos
+    nome = f"atendimentos-{datetime.now(BR_TZ).strftime('%Y-%m-%d')}.csv"
+    return Response(
+        content=corpo,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
+@api_router.patch("/admin/leads/{lead_id}")
+async def admin_update_lead(lead_id: str, input: LeadUpdate, request: Request):
+    validate_origin(request)
+    await get_current_user(request)
+    campos = {}
+    if input.status is not None:
+        campos["status"] = input.status
+    if input.nota is not None:
+        campos["nota"] = input.nota.strip()
+    agora = datetime.now(timezone.utc).isoformat()
+    if input.avaliacao_pedida:
+        campos["avaliacao_pedida_em"] = agora
+    if not campos:
+        raise HTTPException(status_code=400, detail="Nada para atualizar")
+    campos["atualizado_em"] = agora
+    result = await db.lead_events.find_one_and_update(
+        {"id": lead_id},
+        {"$set": campos},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Atendimento nao encontrado")
+    return _lead_out(result)
+
+
+@api_router.get("/admin/leads/retornar")
+async def admin_leads_retornar(request: Request, dias: int = 3):
+    """Atendimentos 'em conversa' ou 'orcamento enviado' sem movimento ha
+    `dias` dias ou mais. Mudar status ou editar a nota conta como movimento."""
+    await get_current_user(request)
+    dias = max(1, min(dias, 60))
+    agora = datetime.now(timezone.utc)
+    limite = (agora - timedelta(days=dias)).isoformat()
+    filtro = {
+        "status": {"$in": ["em_conversa", "orcamento_enviado"]},
+        "$or": [
+            {"atualizado_em": {"$lte": limite}},
+            {"atualizado_em": {"$exists": False}, "timestamp": {"$lte": limite}},
+        ],
+    }
+    itens = await db.lead_events.find(filtro, {"_id": 0}).to_list(200)
+    for it in itens:
+        ref = it.get("atualizado_em") or it["timestamp"]
+        it["parado_ha_dias"] = (agora - datetime.fromisoformat(ref)).days
+    itens.sort(key=lambda x: -x["parado_ha_dias"])
+    return {"total": len(itens), "itens": itens[:50]}
+
+
+# --- Aviso editavel no topo do site (feriado, horario especial, promocao) ---
+class AvisoIn(BaseModel):
+    ativo: bool = False
+    texto: str = Field(default="", max_length=200)
+    tipo: Literal["info", "alerta", "promo"] = "info"
+    # data (AAAA-MM-DD) em que o aviso some sozinho; vazio = sem prazo
+    expira_em: str = Field(default="", pattern=r"^(\d{4}-\d{2}-\d{2})?$")
+
+
+async def _aviso_doc() -> dict:
+    doc = await db.site_settings.find_one({"key": "aviso"}, {"_id": 0})
+    return doc or {
+        "key": "aviso",
+        "ativo": False,
+        "texto": "",
+        "tipo": "info",
+        "expira_em": "",
+    }
+
+
+@api_router.get("/aviso")
+async def aviso_publico(response: Response):
+    doc = await _aviso_doc()
+    hoje = datetime.now(BR_TZ).strftime("%Y-%m-%d")
+    expira = doc.get("expira_em") or ""
+    texto = (doc.get("texto") or "").strip()
+    if not doc.get("ativo") or not texto or (expira and expira < hoje):
+        return {"ativo": False}
+    response.headers["Cache-Control"] = "public, max-age=60"
+    return {"ativo": True, "texto": texto, "tipo": doc.get("tipo", "info")}
+
+
+@api_router.get("/admin/aviso")
+async def admin_aviso(request: Request):
+    await get_current_user(request)
+    return await _aviso_doc()
+
+
+@api_router.put("/admin/aviso")
+async def admin_salvar_aviso(input: AvisoIn, request: Request):
+    validate_origin(request)
+    await get_current_user(request)
+    texto = input.texto.strip()
+    if input.ativo and not texto:
+        raise HTTPException(
+            status_code=400, detail="Escreva o texto do aviso antes de ativar"
+        )
+    doc = {
+        "key": "aviso",
+        **input.model_dump(),
+        "texto": texto,
+        "atualizado_em": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.site_settings.update_one({"key": "aviso"}, {"$set": doc}, upsert=True)
+    return doc
 
 
 # --- Autenticacao do painel admin (JWT em cookies httpOnly) ---
@@ -813,6 +1100,13 @@ async def auth_logout(request: Request, response: Response):
     return {"ok": True}
 
 
+def _cor_label(arq: str) -> str:
+    stem = arq.rsplit(".", 1)[0]
+    stem = re.sub(r"^COD\.\d+-", "", stem)
+    stem = re.sub(r"-(FO|BR|UF|SF)$", "", stem)
+    return stem.replace("-", " ").title()
+
+
 @api_router.get("/admin/stats")
 async def admin_stats(request: Request, periodo: str = "mes"):
     await get_current_user(request)
@@ -837,6 +1131,7 @@ async def admin_stats(request: Request, periodo: str = "mes"):
 
     por_grupo = {}
     por_item = {}
+    por_status = {s: 0 for s in LEAD_STATUS}
     hoje = 0
     for ev in eventos:
         ts = datetime.fromisoformat(ev["timestamp"])
@@ -847,6 +1142,55 @@ async def admin_stats(request: Request, periodo: str = "mes"):
             hoje += 1
         por_grupo[ev["grupo"]] = por_grupo.get(ev["grupo"], 0) + 1
         por_item[ev["item"]] = por_item.get(ev["item"], 0) + 1
+        st = ev.get("status") if ev.get("status") in por_status else "novo"
+        por_status[st] += 1
+
+    # Cores mais simuladas no periodo
+    simulacoes = {"total": 0, "cores": [], "tipos": []}
+    try:
+        linhas = (
+            await db.simulation_events.aggregate(
+                [
+                    {"$match": {"timestamp": {"$gte": inicio.isoformat()}}},
+                    {
+                        "$group": {
+                            "_id": {"cor": "$cor_arq", "tipo": "$tipo"},
+                            "total": {"$sum": 1},
+                            "nome": {"$first": "$cor_nome"},
+                        }
+                    },
+                ]
+            )
+            .to_list(2000)
+        )
+        por_cor = {}
+        por_tipo = {}
+        for row in linhas:
+            arq = row["_id"].get("cor") or ""
+            tipo = row["_id"].get("tipo") or "outros"
+            c = por_cor.setdefault(
+                arq,
+                {
+                    "cor_arq": arq,
+                    "cor_nome": row.get("nome") or arq,
+                    "cor_label": _cor_label(arq),
+                    "total": 0,
+                    "tipos": {},
+                },
+            )
+            c["total"] += row["total"]
+            c["tipos"][tipo] = c["tipos"].get(tipo, 0) + row["total"]
+            por_tipo[tipo] = por_tipo.get(tipo, 0) + row["total"]
+        simulacoes = {
+            "total": sum(por_tipo.values()),
+            "cores": sorted(por_cor.values(), key=lambda c: -c["total"])[:10],
+            "tipos": sorted(
+                [{"tipo": k, "total": v} for k, v in por_tipo.items()],
+                key=lambda x: -x["total"],
+            ),
+        }
+    except Exception:
+        logger.warning("Falha ao agregar simulacoes", exc_info=True)
 
     return {
         "periodo": periodo,
@@ -864,392 +1208,22 @@ async def admin_stats(request: Request, periodo: str = "mes"):
             [{"item": k, "total": v} for k, v in por_item.items()],
             key=lambda x: -x["total"],
         )[:15],
-        "ultimos": eventos[:20],
+        "por_status": por_status,
+        "simulacoes": simulacoes,
+        "ultimos": [_lead_out(e) for e in eventos[:20]],
     }
-
-
-# --- Painel admin: atendimentos (status + CSV) ---
-class LeadUpdate(BaseModel):
-    status: StatusLead | None = None
-    nota: str | None = Field(default=None, max_length=1000)
-
-
-def _filtro_leads(
-    dias: int,
-    grupo: str | None,
-    q: str | None,
-    status: str | None = None,
-) -> dict:
-    cond = []
-    if dias:
-        inicio = datetime.now(timezone.utc) - timedelta(days=dias)
-        cond.append({"timestamp": {"$gte": inicio.isoformat()}})
-    if grupo:
-        cond.append({"grupo": grupo})
-    if q and q.strip():
-        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-        cond.append(
-            {
-                "$or": [
-                    {"item": rx},
-                    {"grupo": rx},
-                    {"nota": rx},
-                    {"dados.nome": rx},
-                    {"dados.telefone": rx},
-                    {"dados.cidade": rx},
-                ]
-            }
-        )
-    if status:
-        if status == "novo":
-            # atendimentos antigos nao tem o campo status: contam como novos
-            cond.append(
-                {"$or": [{"status": "novo"}, {"status": {"$exists": False}}]}
-            )
-        else:
-            cond.append({"status": status})
-    return {"$and": cond} if cond else {}
-
-
-def _lead_out(ev: dict) -> dict:
-    ev.setdefault("status", "novo")
-    ev.setdefault("nota", "")
-    ev.setdefault("dados", {})
-    return ev
-
-
-def _checar_status(status: str | None) -> None:
-    if status and status not in STATUS_LEAD:
-        raise HTTPException(status_code=400, detail="Status invalido")
-
-
-@api_router.get("/admin/leads")
-async def admin_listar_leads(
-    request: Request,
-    dias: int = Query(30, ge=0, le=365),  # 0 = todo o historico
-    status: str | None = None,
-    grupo: str | None = None,
-    q: str | None = Query(None, max_length=80),
-    limite: int = Query(200, ge=1, le=1000),
-):
-    await get_current_user(request)
-    _checar_status(status)
-
-    # Os contadores ignoram o filtro de status, para o funil ficar completo
-    base = _filtro_leads(dias, grupo, q)
-    contagem = await db.lead_events.aggregate(
-        [
-            {"$match": base},
-            {
-                "$group": {
-                    "_id": {"$ifNull": ["$status", "novo"]},
-                    "total": {"$sum": 1},
-                }
-            },
-        ]
-    ).to_list(20)
-    por_status = {s: 0 for s in STATUS_LEAD}
-    for c in contagem:
-        if c["_id"] in por_status:
-            por_status[c["_id"]] = c["total"]
-    total = sum(por_status.values())
-
-    filtro = _filtro_leads(dias, grupo, q, status)
-    filtrados = await db.lead_events.count_documents(filtro)
-    itens = (
-        await db.lead_events.find(filtro, {"_id": 0})
-        .sort("timestamp", -1)
-        .to_list(limite)
-    )
-
-    return {
-        "statuses": STATUS_LEAD,
-        "resumo": {
-            "total": total,
-            "por_status": por_status,
-            "taxa_fechamento": (
-                round(por_status["fechado"] / total * 100, 1)
-                if total
-                else 0
-            ),
-        },
-        "filtrados": filtrados,
-        "itens": [_lead_out(i) for i in itens],
-    }
-
-
-@api_router.patch("/admin/leads/{lead_id}")
-async def admin_atualizar_lead(
-    lead_id: str, input: LeadUpdate, request: Request
-):
-    validate_origin(request)
-    await get_current_user(request)
-    campos = {}
-    if input.status is not None:
-        campos["status"] = input.status
-        campos["status_atualizado_em"] = datetime.now(
-            timezone.utc
-        ).isoformat()
-    if input.nota is not None:
-        campos["nota"] = input.nota.strip()
-    if not campos:
-        raise HTTPException(status_code=400, detail="Nada para atualizar")
-    result = await db.lead_events.find_one_and_update(
-        {"id": lead_id},
-        {"$set": campos},
-        return_document=ReturnDocument.AFTER,
-        projection={"_id": 0},
-    )
-    if not result:
-        raise HTTPException(
-            status_code=404, detail="Atendimento nao encontrado"
-        )
-    return _lead_out(result)
-
-
-STATUS_LABEL = {
-    "novo": "Novo",
-    "em_conversa": "Em conversa",
-    "orcamento_enviado": "Orçamento enviado",
-    "fechado": "Fechado",
-    "perdido": "Perdido",
-}
-
-
-def _csv_safe(valor) -> str:
-    """Evita que Excel/Sheets executem texto digitado no formulario."""
-    s = "" if valor is None else str(valor)
-    if s[:1] in ("=", "+", "-", "@", "\t", "\r") and not re.fullmatch(
-        r"\+?[\d\s()\-]+", s
-    ):
-        s = "'" + s
-    return s
-
-
-@api_router.get("/admin/leads/export.csv")
-async def admin_exportar_leads(
-    request: Request,
-    dias: int = Query(30, ge=0, le=365),
-    status: str | None = None,
-    grupo: str | None = None,
-    q: str | None = Query(None, max_length=80),
-):
-    await get_current_user(request)
-    _checar_status(status)
-    itens = (
-        await db.lead_events.find(
-            _filtro_leads(dias, grupo, q, status), {"_id": 0}
-        )
-        .sort("timestamp", -1)
-        .to_list(20000)
-    )
-
-    buf = io.StringIO()
-    w = csv.writer(buf, delimiter=";", lineterminator="\r\n")
-    w.writerow(
-        [
-            "Data",
-            "Status",
-            "Categoria",
-            "Item",
-            "Origem",
-            "Nome",
-            "Telefone",
-            "Cidade",
-            "Tipo de projeto",
-            "Obra",
-            "Prazo",
-            "Medidas",
-            "Detalhes",
-            "Observação",
-        ]
-    )
-    for ev in itens:
-        ev = _lead_out(ev)
-        d = ev["dados"]
-        data = datetime.fromisoformat(ev["timestamp"]).astimezone(TZ_BR)
-        w.writerow(
-            [
-                _csv_safe(x)
-                for x in [
-                    data.strftime("%d/%m/%Y %H:%M"),
-                    STATUS_LABEL.get(ev["status"], ev["status"]),
-                    ev["grupo"],
-                    ev["item"],
-                    ev.get("origem", ""),
-                    d.get("nome", ""),
-                    d.get("telefone", ""),
-                    d.get("cidade", ""),
-                    d.get("tipo", ""),
-                    d.get("obra", ""),
-                    d.get("prazo", ""),
-                    d.get("medidas", ""),
-                    d.get("detalhes", ""),
-                    ev["nota"],
-                ]
-            ]
-        )
-
-    nome = f"atendimentos-{datetime.now(TZ_BR).strftime('%Y-%m-%d')}.csv"
-    # BOM no inicio: faz o Excel abrir com acentos corretos
-    return Response(
-        content="\ufeff" + buf.getvalue(),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
-    )
-
-
-# --- Painel admin: cores mais simuladas + pre-geracao ---
-@api_router.get("/admin/simulacoes")
-async def admin_simulacoes(
-    request: Request, dias: int = Query(30, ge=1, le=365)
-):
-    await get_current_user(request)
-    inicio = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
-    filtro = {"timestamp": {"$gte": inicio}}
-
-    total = await db.simulacoes.count_documents(filtro)
-    do_cache = await db.simulacoes.count_documents(
-        {**filtro, "cache_hit": True}
-    )
-    media = await db.simulacoes.aggregate(
-        [
-            {"$match": {**filtro, "cache_hit": False}},
-            {"$group": {"_id": None, "media": {"$avg": "$ms"}}},
-        ]
-    ).to_list(1)
-    por_tipo = await db.simulacoes.aggregate(
-        [
-            {"$match": filtro},
-            {"$group": {"_id": "$tipo", "total": {"$sum": 1}}},
-            {"$sort": {"total": -1}},
-        ]
-    ).to_list(20)
-    top = await db.simulacoes.aggregate(
-        [
-            {"$match": filtro},
-            {
-                "$group": {
-                    "_id": "$cor_arq",
-                    "total": {"$sum": 1},
-                    "nome": {"$last": "$cor_nome"},
-                    "codigo": {"$last": "$cor_codigo"},
-                }
-            },
-            {"$sort": {"total": -1}},
-            {"$limit": 15},
-        ]
-    ).to_list(15)
-
-    cores = [
-        {
-            "arq": c["_id"],
-            "nome": c.get("nome") or c["_id"],
-            "codigo": c.get("codigo") or "",
-            "total": c["total"],
-            "tipos_em_cache": sum(
-                1 for t in SIM_TIPOS if _arquivo_em_cache(_cache_key(t, c["_id"]))
-            ),
-        }
-        for c in top
-    ]
-    arquivos_em_cache = len(
-        {
-            p.stem
-            for p in SIM_CACHE_DIR.iterdir()
-            if p.suffix in (".webp", ".png")
-        }
-    )
-
-    return {
-        "dias": dias,
-        "total": total,
-        "pct_cache": round(do_cache / total * 100) if total else 0,
-        "media_geracao_s": (
-            round(media[0]["media"] / 1000, 1) if media else None
-        ),
-        "arquivos_em_cache": arquivos_em_cache,
-        "tipos_total": len(SIM_TIPOS),
-        "por_tipo": [{"tipo": t["_id"], "total": t["total"]} for t in por_tipo],
-        "cores": cores,
-        "pregeracao": dict(_pregen),
-    }
-
-
-@api_router.get("/admin/simulacoes/pre-gerar")
-async def admin_pregen_status(request: Request):
-    await get_current_user(request)
-    return dict(_pregen)
-
-
-@api_router.post("/admin/simulacoes/pre-gerar")
-async def admin_pre_gerar(input: PreGerarRequest, request: Request):
-    """Gera antecipadamente as N cores mais pedidas (todos os tipos).
-
-    Cada imagem nova consome creditos da IA: use com moderacao.
-    """
-    validate_origin(request)
-    await get_current_user(request)
-    if _pregen["rodando"]:
-        raise HTTPException(
-            status_code=409, detail="Ja existe uma pre-geracao em andamento"
-        )
-    tipos = input.tipos or list(SIM_TIPOS)
-    if any(t not in SIM_TIPOS for t in tipos):
-        raise HTTPException(status_code=400, detail="Tipo invalido")
-
-    top = await db.simulacoes.aggregate(
-        [
-            {
-                "$group": {
-                    "_id": "$cor_arq",
-                    "total": {"$sum": 1},
-                    "nome": {"$last": "$cor_nome"},
-                }
-            },
-            {"$sort": {"total": -1}},
-            {"$limit": input.top},
-        ]
-    ).to_list(input.top)
-
-    itens, ja_em_cache = [], 0
-    for c in top:
-        arq = c["_id"] or ""
-        if not re.fullmatch(r"[\w.\-]+", arq) or not os.path.isfile(
-            os.path.join(SIM_CORES_DIR, arq)
-        ):
-            continue
-        for t in tipos:
-            if _arquivo_em_cache(_cache_key(t, arq)):
-                ja_em_cache += 1
-                continue
-            itens.append(
-                {
-                    "tipo": t,
-                    "cor_arq": arq,
-                    "cor_nome": c.get("nome") or arq,
-                    "acabamento": (
-                        "madeira" if arq.startswith("COD.") else "pintura"
-                    ),
-                }
-            )
-
-    if not itens:
-        return {"agendadas": 0, "ja_em_cache": ja_em_cache}
-
-    _pregen.update(rodando=True, total=len(itens), feitas=0, erros=0)
-    task = asyncio.create_task(_rodar_pregen(itens))
-    _bg_tasks.add(task)  # guarda a referencia, senao o Python pode descartar
-    task.add_done_callback(_bg_tasks.discard)
-    return {"agendadas": len(itens), "ja_em_cache": ja_em_cache}
 
 
 @app.on_event("startup")
 async def seed_admin():
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
-    await db.lead_events.create_index("timestamp")
-    await db.simulacoes.create_index("timestamp")
+    try:  # indices de desempenho: nunca devem derrubar a inicializacao
+        await db.lead_events.create_index("timestamp")
+        await db.lead_events.create_index("id")
+        await db.simulation_events.create_index("timestamp")
+    except Exception:
+        logger.warning("Nao foi possivel criar indices", exc_info=True)
     await db.password_reset_tokens.create_index(
         "expires_at", expireAfterSeconds=0
     )
@@ -1278,11 +1252,6 @@ async def seed_admin():
 
 # Registra as rotas
 app.include_router(api_router)
-app.mount(
-    SIM_CACHE_URL,
-    CachedStatic(directory=str(SIM_CACHE_DIR)),
-    name="simulacao_img",
-)
 
 app.add_middleware(
     CORSMiddleware,

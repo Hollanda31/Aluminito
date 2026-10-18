@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X } from "lucide-react";
+import { Blinds, DoorOpen, Frame, LayoutGrid, Wand2, X, Zap } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
 import { waMessage } from "@/lib/site";
@@ -108,23 +108,19 @@ export default function CatalogoCores() {
     const [loading, setLoading] = useState(false);
     const [erro, setErro] = useState(null);
     const [msgIdx, setMsgIdx] = useState(0);
-    const [progresso, setProgresso] = useState(0);
-    const imgCache = useRef(new Map()); // simulações já vistas nesta visita
-    const reqId = useRef(0); // ignora respostas de pedidos antigos
-    const abortRef = useRef(null);
+    // Simulações já vistas nesta visita (tipo|arquivo -> url): trocar de cor e
+    // voltar é instantâneo, sem nova chamada ao servidor.
+    const cacheRef = useRef(new Map());
+    // Número do pedido atual: ignora respostas antigas (fechou ou trocou antes de terminar).
+    const reqRef = useRef(0);
+    // Chaves "tipo|arquivo" das simulações que o servidor já tem prontas.
+    const [prontas, setProntas] = useState(() => new Set());
 
     const lista = tab === "pintura" ? PINTURA : MADEIRA;
 
     useEffect(() => {
         if (!loading) return;
         const t = setInterval(() => setMsgIdx((i) => (i + 1) % LOAD_MSGS.length), 2600);
-        return () => clearInterval(t);
-    }, [loading]);
-
-    useEffect(() => {
-        if (!loading) return;
-        setProgresso(4);
-        const t = setInterval(() => setProgresso((p) => p + (95 - p) * 0.07), 500);
         return () => clearInterval(t);
     }, [loading]);
 
@@ -143,8 +139,7 @@ export default function CatalogoCores() {
     }, [modalAberto]);
 
     const fechar = () => {
-        reqId.current += 1;
-        abortRef.current?.abort();
+        reqRef.current += 1;
         setCor(null);
         setStep("cor");
         setTipo(null);
@@ -153,15 +148,39 @@ export default function CatalogoCores() {
         setLoading(false);
     };
 
-    const gerar = async (corSel, tipoSel) => {
-        const id = ++reqId.current;
-        abortRef.current?.abort();
-        setErro(null);
-        setMsgIdx(0);
+    const urlCompleta = (u) => (u.startsWith("http") ? u : `${BACKEND}${u}`);
 
-        // já vista nesta visita: aparece na hora, sem falar com o servidor
-        const key = `${tipoSel}|${corSel.arq}`;
-        const guardada = imgCache.current.get(key);
+    // baixa a imagem antes de mostrar, para não aparecer um quadro em branco
+    const baixarImagem = (src) =>
+        new Promise((resolve) => {
+            const im = new Image();
+            im.onload = () => resolve(src);
+            im.onerror = () => resolve(src);
+            im.src = src;
+        });
+
+    // pergunta ao servidor quais cores deste tipo já estão prontas (marca com raio)
+    const carregarProntas = async (t) => {
+        try {
+            const r = await fetch(`${BACKEND}/api/simular/disponiveis?tipo=${t}`);
+            if (!r.ok) return;
+            const d = await r.json();
+            setProntas((antes) => {
+                const novo = new Set(antes);
+                (d.cores || []).forEach((a) => novo.add(`${t}|${a}`));
+                return novo;
+            });
+        } catch (e) {
+            /* é só um indicador visual: ignora falhas */
+        }
+    };
+
+    const gerar = async (corSel, tipoSel) => {
+        const chave = `${tipoSel}|${corSel.arq}`;
+        const id = ++reqRef.current;
+        setErro(null);
+
+        const guardada = cacheRef.current.get(chave);
         if (guardada) {
             setImg(guardada);
             setLoading(false);
@@ -170,44 +189,33 @@ export default function CatalogoCores() {
 
         setLoading(true);
         setImg(null);
-        const ctrl = new AbortController();
-        abortRef.current = ctrl;
-        const limite = setTimeout(() => ctrl.abort(), 120000);
+        setMsgIdx(0);
         try {
             const r = await fetch(`${BACKEND}/api/simular`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                signal: ctrl.signal,
                 body: JSON.stringify({
                     tipo: tipoSel,
                     cor_arq: corSel.arq,
                     cor_nome: corSel.nome,
-                    cor_codigo: corSel.codigo,
                     acabamento: corSel.arq.startsWith("COD.") ? "madeira" : "pintura",
+                    formato: "url",
                 }),
             });
             const d = await r.json();
             if (!r.ok) throw new Error(d.detail || "Falha ao gerar");
-
-            // o servidor devolve o endereço da imagem (WebP leve);
-            // baixa antes de mostrar para não aparecer a tela em branco
-            const url = d.url.startsWith("http") ? d.url : `${BACKEND}${d.url}`;
-            await new Promise((resolve) => {
-                const im = new Image();
-                im.onload = resolve;
-                im.onerror = resolve;
-                im.src = url;
-            });
-            if (id !== reqId.current) return;
-            imgCache.current.set(key, url);
-            setProgresso(100);
-            setImg(url);
+            const src = urlCompleta(d.url);
+            await baixarImagem(src);
+            cacheRef.current.set(chave, src);
+            setProntas((antes) => new Set(antes).add(chave));
+            if (id !== reqRef.current) return;
+            setImg(src);
         } catch (e) {
-            if (id !== reqId.current) return;
-            setErro("Não consegui gerar a simulação agora. Toque em tentar novamente.");
+            if (id === reqRef.current) {
+                setErro("Não consegui gerar a simulação agora. Toque em tentar novamente.");
+            }
         } finally {
-            clearTimeout(limite);
-            if (id === reqId.current) setLoading(false);
+            if (id === reqRef.current) setLoading(false);
         }
     };
 
@@ -215,6 +223,7 @@ export default function CatalogoCores() {
         setTipo(t);
         setStep("sim");
         gerar(cor, t);
+        carregarProntas(t);
     };
 
     const trocarCor = (c) => {
@@ -431,13 +440,7 @@ export default function CatalogoCores() {
                                             >
                                                 <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-slate-200 border-t-azul" />
                                                 <p className="text-sm font-medium text-slate-600">{LOAD_MSGS[msgIdx]}</p>
-                                                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-200">
-                                                    <div
-                                                        className="h-full rounded-full bg-azul transition-all duration-500"
-                                                        style={{ width: `${progresso}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-xs text-slate-400">Cores novas levam cerca de 15 segundos. As próximas aparecem na hora.</p>
+                                                <p className="px-6 text-center text-xs text-slate-400">A primeira vez com cada cor leva até 30 segundos. Cores marcadas com o raio abaixo aparecem na hora.</p>
                                             </div>
                                         )}
                                         {erro && !loading && (
@@ -454,6 +457,7 @@ export default function CatalogoCores() {
                                             <img
                                                 data-testid="sim-result-image"
                                                 src={img}
+                                                decoding="async"
                                                 alt={`Simulação: ${tipoNome} na cor ${cor.nome}`}
                                                 className="h-full w-full object-cover"
                                             />
@@ -472,16 +476,27 @@ export default function CatalogoCores() {
                                                     onClick={() => trocarCor(c)}
                                                     disabled={loading}
                                                     title={`${c.nome} ${c.codigo}`}
-                                                    className={`h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200 disabled:opacity-40 ${
+                                                    className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border-2 transition-all duration-200 disabled:opacity-40 ${
                                                         c.arq === cor.arq
                                                             ? "border-azul ring-2 ring-azul/30"
                                                             : "border-transparent hover:border-slate-300"
                                                     }`}
                                                 >
                                                     <img src={`/cores/${c.arq}`} alt={c.nome} className="h-full w-full object-cover" />
+                                                    {prontas.has(`${tipo}|${c.arq}`) && (
+                                                        <span
+                                                            data-testid={`sim-pronta-${slug(c.nome)}-${slug(c.codigo)}`}
+                                                            className="absolute bottom-0.5 right-0.5 grid h-4 w-4 place-items-center rounded-full bg-azul text-white shadow"
+                                                        >
+                                                            <Zap size={9} fill="currentColor" />
+                                                        </span>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
+                                        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
+                                            <Zap size={11} className="text-azul" /> Cores com o raio já estão prontas e aparecem na hora.
+                                        </p>
                                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <button
                                                 data-testid="sim-back-tipo"

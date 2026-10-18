@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authApi, withAuthRefresh } from "@/lib/auth";
 import ReviewsManager from "@/components/admin/ReviewsManager";
-import Atendimentos from "@/components/admin/Atendimentos";
-import SimulacoesStats from "@/components/admin/SimulacoesStats";
+import LeadsManager from "@/components/admin/LeadsManager";
+import AvisoEditor from "@/components/admin/AvisoEditor";
+import RetornarHoje from "@/components/admin/RetornarHoje";
+import { STATUS_LEAD, TIPOS_SIM, baixarCsv } from "@/lib/leads";
 import {
     Bar,
     BarChart,
@@ -15,8 +17,10 @@ import {
 } from "recharts";
 import {
     CalendarDays,
+    Download,
     LogOut,
     MousePointerClick,
+    Palette,
     RefreshCw,
     TrendingUp,
 } from "lucide-react";
@@ -37,6 +41,8 @@ export default function Admin() {
     const [erro, setErro] = useState(null);
     const [carregando, setCarregando] = useState(true);
     const [usuario, setUsuario] = useState(null);
+    const [baixando, setBaixando] = useState(false);
+    const [aviso, setAviso] = useState("");
 
     const carregar = useCallback(
         async (p) => {
@@ -80,6 +86,36 @@ export default function Admin() {
         setPeriodo(p);
         setCarregando(true);
         carregar(p);
+    };
+
+    const exportar = async () => {
+        setBaixando(true);
+        try {
+            await baixarCsv({ periodo });
+        } catch (e) {
+            setErro("Não foi possível baixar o CSV.");
+        } finally {
+            setBaixando(false);
+        }
+    };
+
+    const prepararSimulacoes = async () => {
+        const ok = window.confirm(
+            "Isso gera, em segundo plano, as simulações das 6 cores mais simuladas que ainda não estão prontas (porta, janela, persiana e outros). Cada imagem nova consome créditos da IA. Continuar?",
+        );
+        if (!ok) return;
+        try {
+            const { data } = await withAuthRefresh(() =>
+                authApi.post("/api/admin/simular/prewarm", { top: 6 }),
+            );
+            setAviso(
+                data.agendadas
+                    ? `${data.agendadas} simulações estão sendo preparadas. Em alguns minutos elas aparecem instantâneas no site.`
+                    : "As cores mais simuladas já estão todas prontas.",
+            );
+        } catch (e) {
+            setAviso("Não foi possível iniciar a preparação agora.");
+        }
     };
 
     const sair = async () => {
@@ -131,12 +167,12 @@ export default function Admin() {
             </header>
 
             <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-                <div className="mb-6 flex flex-wrap gap-2 border-b border-white/10 pb-4">
+                <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
                     {[
                         { id: "visao", label: "Visão geral" },
                         { id: "atendimentos", label: "Atendimentos" },
-                        { id: "simulador", label: "Simulador" },
                         { id: "avaliacoes", label: "Avaliações" },
+                        { id: "aviso", label: "Aviso do site" },
                     ].map((aba) => (
                         <button
                             key={aba.id}
@@ -178,13 +214,23 @@ export default function Admin() {
                             </button>
                         ))}
                     </div>
-                    <button
-                        data-testid="admin-refresh"
-                        onClick={() => carregar()}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:text-white"
-                    >
-                        <RefreshCw size={14} /> Atualizar
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            data-testid="admin-export-csv"
+                            onClick={exportar}
+                            disabled={baixando}
+                            className="inline-flex items-center gap-2 rounded-full bg-azul px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-azul-dark disabled:opacity-50"
+                        >
+                            <Download size={14} /> {baixando ? "Gerando..." : "Exportar CSV"}
+                        </button>
+                        <button
+                            data-testid="admin-refresh"
+                            onClick={() => carregar()}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:text-white"
+                        >
+                            <RefreshCw size={14} /> Atualizar
+                        </button>
+                    </div>
                 </div>
 
                 {erro && (
@@ -225,6 +271,25 @@ export default function Admin() {
                                 </div>
                                 <p className="mt-3 font-display text-4xl font-bold">{maxDia}</p>
                             </div>
+                        </div>
+
+                        <RetornarHoje onAbrirAtendimentos={() => setSecao("atendimentos")} />
+
+                        <div data-testid="admin-status-resumo" className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                            {STATUS_LEAD.map((st) => (
+                                <button
+                                    key={st.id}
+                                    onClick={() => setSecao("atendimentos")}
+                                    className="rounded-2xl border border-white/10 bg-graphite2 px-4 py-3 text-left transition-colors hover:border-white/30"
+                                >
+                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>
+                                        {st.label}
+                                    </span>
+                                    <p className="mt-2 font-display text-2xl font-bold">
+                                        {stats.por_status?.[st.id] ?? 0}
+                                    </p>
+                                </button>
+                            ))}
                         </div>
 
                         <div data-testid="admin-chart" className="mt-6 rounded-2xl border border-white/10 bg-graphite2 p-6">
@@ -323,6 +388,68 @@ export default function Admin() {
                             </div>
                         </div>
 
+                        <div data-testid="admin-cores-simuladas" className="mt-6 rounded-2xl border border-white/10 bg-graphite2 p-6">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                                        <Palette size={18} className="text-azul" />
+                                        Cores mais simuladas
+                                    </h2>
+                                    <p className="mt-1 text-xs text-silver/50">
+                                        {stats.simulacoes?.total || 0} simulações no período
+                                        {stats.simulacoes?.tipos?.length > 0 && " · "}
+                                        {(stats.simulacoes?.tipos || [])
+                                            .map((t) => `${TIPOS_SIM[t.tipo] || t.tipo} ${t.total}`)
+                                            .join(" · ")}
+                                    </p>
+                                </div>
+                                <button
+                                    data-testid="admin-prewarm"
+                                    onClick={prepararSimulacoes}
+                                    className="rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
+                                >
+                                    Deixar essas cores instantâneas
+                                </button>
+                            </div>
+                            {aviso && (
+                                <p className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-silver/80">
+                                    {aviso}
+                                </p>
+                            )}
+                            {!stats.simulacoes || stats.simulacoes.cores.length === 0 ? (
+                                <p className="mt-6 text-sm text-silver/50">
+                                    Nenhuma simulação no período ainda.
+                                </p>
+                            ) : (
+                                <ul className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                                    {stats.simulacoes.cores.map((c, i) => (
+                                        <li key={c.cor_arq} className="flex items-center gap-3">
+                                            <span className="w-5 font-display text-xs font-bold text-silver/40">
+                                                {i + 1}
+                                            </span>
+                                            <img
+                                                src={`/cores/${c.cor_arq}`}
+                                                alt={c.cor_label}
+                                                loading="lazy"
+                                                className="h-10 w-10 shrink-0 rounded-lg border border-white/10 object-cover"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-medium text-white">
+                                                    {c.cor_label}
+                                                </p>
+                                                <p className="truncate text-xs text-silver/50">
+                                                    {Object.entries(c.tipos)
+                                                        .map(([t, n]) => `${TIPOS_SIM[t] || t} ${n}`)
+                                                        .join(" · ")}
+                                                </p>
+                                            </div>
+                                            <span className="font-display font-bold text-azul">{c.total}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
                         <div data-testid="admin-ultimos" className="mt-6 rounded-2xl border border-white/10 bg-graphite2 p-6">
                             <h2 className="font-display text-lg font-semibold">
                                 Últimos atendimentos
@@ -340,7 +467,8 @@ export default function Admin() {
                                                 <th className="pb-3 pr-4 font-semibold">Data</th>
                                                 <th className="pb-3 pr-4 font-semibold">Categoria</th>
                                                 <th className="pb-3 pr-4 font-semibold">Item escolhido</th>
-                                                <th className="pb-3 font-semibold">Origem</th>
+                                                <th className="pb-3 pr-4 font-semibold">Origem</th>
+                                                <th className="pb-3 font-semibold">Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -355,7 +483,12 @@ export default function Admin() {
                                                         </span>
                                                     </td>
                                                     <td className="py-3 pr-4 text-white">{ev.item}</td>
-                                                    <td className="py-3 text-silver/60">{ev.origem || "—"}</td>
+                                                    <td className="py-3 pr-4 text-silver/60">{ev.origem || "—"}</td>
+                                                    <td className="py-3">
+                                                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(STATUS_LEAD.find((x) => x.id === ev.status) || STATUS_LEAD[0]).cls}`}>
+                                                            {(STATUS_LEAD.find((x) => x.id === ev.status) || STATUS_LEAD[0]).label}
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -367,8 +500,8 @@ export default function Admin() {
                 ) : null}
                 </div>
 
-                {secao === "atendimentos" && <Atendimentos />}
-                {secao === "simulador" && <SimulacoesStats />}
+                {secao === "atendimentos" && <LeadsManager />}
+                {secao === "aviso" && <AvisoEditor />}
                 {secao === "avaliacoes" && <ReviewsManager />}
             </main>
         </div>

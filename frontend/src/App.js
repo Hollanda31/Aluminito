@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "@/App.css";
 import { initLenis } from "@/lib/scroll";
 import Header from "@/components/Header";
+import AvisoTopo from "@/components/AvisoTopo";
 import Hero from "@/components/Hero";
 import Marquee from "@/components/Marquee";
 import Sobre from "@/components/Sobre";
@@ -39,6 +40,7 @@ class ErrorBoundary extends Component {
 function Landing() {
     return (
         <div className="bg-graphite font-body text-graphite antialiased">
+            <AvisoTopo />
             <Header />
             <main>
                 <Hero />

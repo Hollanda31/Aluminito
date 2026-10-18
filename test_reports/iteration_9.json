@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only regression after WebP image optimization for /hero and /projects. Verified responsive srcSet selection on mobile (375px), tablet (768px) and desktop (1366px), Hero carousel, Sobre image, Projects grid, lightbox navigation, mobile PWA button and WhatsApp CTA. All in-scope images render without 404s or console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "observations": {
+    "hero_mobile_375": "img uses /hero/loja-atual-768.webp (nw=374) via srcset — correct",
+    "hero_tablet_768": "img uses /hero/loja-atual-768.webp (nw=768) — correct",
+    "hero_desktop_1366": "img uses /hero/loja-atual-1600.webp (nw=1366) — correct",
+    "projects_cards": "All grid cards use *-768.webp with srcset (e.g., Janela-de-correr-1-768.webp, Banheiro-1-768.webp, Varanda-1-768.webp) — correct",
+    "lightbox_desktop": "Opened Janela-de-correr lightbox on 1366px — rendered projects/Janela-de-correr-1-1600.webp; prev/next arrows and close button visible; counter '5 de 36' shown",
+    "sobre_image": "historia-2-1600.webp loaded with srcset on desktop; no layout break",
+    "network": "0 image 404s observed across all viewports",
+    "console": "0 errors. Only 3 benign framer-motion warnings about non-static position container (pre-existing, unrelated to WebP optimization)",
+    "mobile_regression": "PWA Baixar App button present, WhatsApp floating CTA (wa.me) present, mobile menu toggle rendered"
+  },
+  "out_of_scope_findings": [
+    "/cores/COD.*.webp swatch images report naturalWidth=0 when below the fold (lazy-loaded) but return no HTTP 404. Not part of this task (scope is /hero and /projects). Mentioning only for context — not a regression caused by this iteration."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "src/lib/images.js helper is minimal and correct; regex only matches /hero and /projects paths and preserves non-matching src — safe fallback.",
+    "Consider using <picture> with <source type=image/webp> for stronger fallback on browsers without WebP (very minor since global WebP support is ~97%)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (scope: hero/projects WebP)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "WebP optimization validated across 3 viewports. srcSet correctly resolves to -768 on <=768px and -1600 on desktop. Lightbox uses 1600 variant. Lead_events (13) in Mongo were not touched (frontend-only test).",
+  "rca of the issue": "No issue — regression passed."
+}

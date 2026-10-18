@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
-import InstallAppButton from "@/components/InstallAppButton";
 import { scrollToId } from "@/lib/scroll";
 import { waOrcamento } from "@/lib/site";
 import { trackClique } from "@/lib/track";
@@ -35,7 +34,8 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+            style={{ top: "var(--aviso-h, 0px)" }}
+            className={`fixed inset-x-0 z-50 transition-all duration-300 ${
                 scrolled || open
                     ? "border-b border-white/10 bg-graphite/85 py-3 backdrop-blur-xl"
                     : "bg-transparent py-5"
@@ -55,30 +55,24 @@ export default function Header() {
                         </button>
                     ))}
                 </nav>
-                <div className="hidden items-center gap-3 lg:flex">
-                    <InstallAppButton variant="header" />
-                    <a
-                        data-testid="header-cta-orcamento"
+                <a
+                    data-testid="header-cta-orcamento"
                         onClick={() => trackClique("Geral", "Menu - Solicitar Orçamento", "header")}
-                        href={waOrcamento}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
-                    >
-                        Solicitar Orçamento
-                    </a>
-                </div>
-                <div className="flex items-center gap-2 lg:hidden">
-                    <InstallAppButton variant="header-mobile" />
-                    <button
-                        data-testid="header-menu-toggle"
-                        className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white"
-                        onClick={() => setOpen((v) => !v)}
-                        aria-label={open ? "Fechar menu" : "Abrir menu"}
-                    >
-                        {open ? <X size={20} /> : <Menu size={20} />}
-                    </button>
-                </div>
+                    href={waOrcamento}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hidden rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark lg:block"
+                >
+                    Solicitar Orçamento
+                </a>
+                <button
+                    data-testid="header-menu-toggle"
+                    className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white lg:hidden"
+                    onClick={() => setOpen((v) => !v)}
+                    aria-label={open ? "Fechar menu" : "Abrir menu"}
+                >
+                    {open ? <X size={20} /> : <Menu size={20} />}
+                </button>
             </div>
 
             <AnimatePresence>
@@ -101,9 +95,6 @@ export default function Header() {
                                     {l.label}
                                 </button>
                             ))}
-                            <div className="mt-2">
-                                <InstallAppButton variant="mobile" onDone={() => setOpen(false)} />
-                            </div>
                             <a
                                 data-testid="mobile-cta-orcamento"
                                 onClick={() => trackClique("Geral", "Menu mobile - Solicitar Orçamento", "header")}
