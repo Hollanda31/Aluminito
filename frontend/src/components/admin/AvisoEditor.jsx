@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { authApi, withAuthRefresh } from "@/lib/auth";
+import AdminHelp from "@/components/admin/AdminHelp";
 
 const TIPOS = [
     { id: "info", label: "Informativo (cinza)", prev: "bg-graphite2 text-white border border-white/10" },
@@ -103,6 +104,7 @@ export default function AvisoEditor() {
 
     return (
         <div className="max-w-2xl space-y-6">
+            <AdminHelp>O aviso pode ser ativado por um período. Revise o texto e a prévia antes de salvar; apagar remove o conteúdo salvo, enquanto desativar apenas tira o aviso do site.</AdminHelp>
             {/* O que está no ar agora */}
             <section
                 data-testid="aviso-status"

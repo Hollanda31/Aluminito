@@ -16,6 +16,7 @@ import Footer from "@/components/Footer";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import AdminLogin from "@/pages/AdminLogin";
 import Admin from "@/pages/Admin";
+import { SiteConfigProvider } from "@/lib/SiteConfig";
 
 class ErrorBoundary extends Component {
     constructor(props) {
@@ -67,11 +68,13 @@ function App() {
     return (
         <ErrorBoundary>
             <BrowserRouter>
-                <Routes>
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                </Routes>
+                <SiteConfigProvider>
+                    <Routes>
+                        <Route path="/" element={<Landing />} />
+                        <Route path="/admin" element={<Admin />} />
+                        <Route path="/admin/login" element={<AdminLogin />} />
+                    </Routes>
+                </SiteConfigProvider>
             </BrowserRouter>
         </ErrorBoundary>
     );

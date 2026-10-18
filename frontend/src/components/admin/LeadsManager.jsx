@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authApi, withAuthRefresh } from "@/lib/auth";
-import { STATUS_LEAD, baixarCsv, statusInfo, waCliente } from "@/lib/leads";
+import { STATUS_LEAD, PRIORIDADE_LEAD, baixarCsv, statusInfo, prioridadeInfo, waCliente } from "@/lib/leads";
 import { Download, RefreshCw, Search } from "lucide-react";
+import AdminHelp from "@/components/admin/AdminHelp";
 
 const PERIODOS = [
     { id: "semana", label: "7 dias" },
@@ -17,6 +18,10 @@ const DETALHES = [
     ["medidas", "Medidas"],
     ["obs", "Observações"],
 ];
+const MOTIVOS_PERDA = [
+    ["preco", "Preço"], ["prazo", "Prazo"], ["concorrente", "Escolheu outro fornecedor"],
+    ["desistiu", "Desistiu do projeto"], ["sem_resposta", "Parou de responder"], ["outro", "Outro motivo"],
+];
 
 const fmtData = (iso) =>
     new Date(iso).toLocaleString("pt-BR", {
@@ -29,14 +34,23 @@ const fmtData = (iso) =>
 const selectClass =
     "rounded-lg border border-white/15 bg-graphite px-3 py-2 text-sm text-white outline-none transition focus:border-azul";
 
-function LeadCard({ lead, onChange }) {
+function LeadCard({ lead, onChange, quickReplies }) {
     const [nota, setNota] = useState(lead.nota || "");
     const [salvando, setSalvando] = useState(false);
     const [erro, setErro] = useState("");
+    const [motivoPerda, setMotivoPerda] = useState(lead.motivo_perda || "");
+    const [escolhendoMotivo, setEscolhendoMotivo] = useState(false);
     const d = lead.dados || {};
     const info = statusInfo(lead.status);
     const wa = waCliente(d.telefone);
     const detalhes = DETALHES.filter(([k]) => d[k]);
+    const prioridade = prioridadeInfo(lead.prioridade);
+
+    const enviarResposta = (message) => {
+        if (!wa) return;
+        const texto = message.replaceAll("{{nome}}", (d.nome || "").trim().split(/\s+/)[0] || "");
+        window.open(`${wa}?text=${encodeURIComponent(texto)}`, "_blank", "noopener,noreferrer");
+    };
 
     const salvar = async (payload) => {
         setSalvando(true);
@@ -95,7 +109,7 @@ function LeadCard({ lead, onChange }) {
                         aria-label="Status do atendimento"
                         value={lead.status}
                         disabled={salvando}
-                        onChange={(e) => salvar({ status: e.target.value })}
+                        onChange={(e) => e.target.value === "perdido" ? setEscolhendoMotivo(true) : salvar({ status: e.target.value })}
                         style={{ colorScheme: "dark" }}
                         className={selectClass}
                     >
@@ -105,8 +119,27 @@ function LeadCard({ lead, onChange }) {
                             </option>
                         ))}
                     </select>
+                    <select
+                        aria-label="Prioridade do atendimento"
+                        value={lead.prioridade || "media"}
+                        disabled={salvando}
+                        onChange={(e) => salvar({ prioridade: e.target.value })}
+                        style={{ colorScheme: "dark" }}
+                        className={selectClass}
+                    >
+                        {PRIORIDADE_LEAD.map((p) => <option key={p.id} value={p.id}>Prioridade: {p.label}</option>)}
+                    </select>
                 </div>
             </div>
+
+            {escolhendoMotivo && <label className="mt-4 block max-w-sm text-xs text-silver/70">Por que o atendimento foi perdido?
+                <select autoFocus value={motivoPerda} onChange={(e) => { const value = e.target.value; setMotivoPerda(value); if (value) { setEscolhendoMotivo(false); salvar({ status: "perdido", motivo_perda: value }); } }} className={`${selectClass} mt-1.5 w-full`}>
+                    <option value="">Escolha um motivo</option>{MOTIVOS_PERDA.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </select>
+            </label>}
+            {lead.status === "perdido" && lead.motivo_perda && <p className="mt-3 text-xs text-silver/60">Motivo da perda: {MOTIVOS_PERDA.find(([id]) => id === lead.motivo_perda)?.[1] || "Outro motivo"}</p>}
+
+            <div className="mt-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${prioridade.cls}`}>Prioridade {prioridade.label.toLowerCase()}</span></div>
 
             {(d.telefone || d.cidade) && (
                 <p className="mt-3 text-sm text-silver/80">
@@ -125,6 +158,8 @@ function LeadCard({ lead, onChange }) {
                     )}
                 </p>
             )}
+
+            {wa && quickReplies.length > 0 && <details className="mt-4 rounded-xl border border-white/10 px-4 py-3"><summary className="cursor-pointer text-xs font-semibold text-azul">Respostas rápidas</summary><div className="mt-3 flex flex-wrap gap-2">{quickReplies.map((reply) => <button key={reply.id} type="button" onClick={() => enviarResposta(reply.message)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-silver hover:text-white">{reply.title}</button>)}</div></details>}
 
             {detalhes.length > 0 && (
                 <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
@@ -189,6 +224,9 @@ export default function LeadsManager() {
     const [carregando, setCarregando] = useState(true);
     const [erro, setErro] = useState("");
     const [baixando, setBaixando] = useState(false);
+    const [quickReplies, setQuickReplies] = useState([]);
+    const [replyMsg, setReplyMsg] = useState("");
+    const [savingReplies, setSavingReplies] = useState(false);
     const pedido = useRef(0);
 
     // espera o usuário parar de digitar antes de buscar
@@ -226,6 +264,12 @@ export default function LeadsManager() {
         carregar(0);
     }, [carregar]);
 
+    useEffect(() => {
+        withAuthRefresh(() => authApi.get("/api/admin/quick-replies"))
+            .then(({ data }) => setQuickReplies(data.items || []))
+            .catch(() => setReplyMsg("Não foi possível carregar as respostas rápidas."));
+    }, []);
+
     const atualizarItem = (novo) =>
         setItens((lista) => lista.map((l) => (l.id === novo.id ? novo : l)));
 
@@ -240,8 +284,20 @@ export default function LeadsManager() {
         }
     };
 
+    const salvarRespostas = async () => {
+        setSavingReplies(true); setReplyMsg("");
+        try {
+            const { data } = await withAuthRefresh(() => authApi.put("/api/admin/quick-replies", { items: quickReplies }));
+            setQuickReplies(data.items); setReplyMsg("Respostas rápidas salvas.");
+        } catch (e) { setReplyMsg(e.response?.data?.detail || "Não foi possível salvar as respostas."); }
+        finally { setSavingReplies(false); }
+    };
+
+    const adicionarResposta = () => setQuickReplies((all) => [...all, { id: globalThis.crypto?.randomUUID?.() || `resposta-${Date.now()}`, title: "", message: "" }]);
+
     return (
         <div data-testid="admin-leads-section">
+            <AdminHelp className="mb-4">Atualize o status e a prioridade para organizar a fila. As respostas rápidas são compartilhadas com a equipe; use <code>{"{{nome}}"}</code> para inserir o primeiro nome do cliente. As notas internas não são enviadas ao cliente.</AdminHelp>
             <div className="flex flex-wrap items-center gap-3">
                 <div className="relative min-w-[200px] flex-1">
                     <Search
@@ -287,6 +343,15 @@ export default function LeadsManager() {
                 </button>
             </div>
 
+            <details className="mt-4 rounded-xl border border-white/10 bg-graphite2 p-4">
+                <summary className="cursor-pointer text-sm font-semibold">Configurar respostas rápidas</summary>
+                <div className="mt-3 space-y-3">{quickReplies.map((reply, index) => <div key={reply.id} className="grid gap-2 rounded-lg border border-white/10 p-3 sm:grid-cols-[180px_1fr_auto]"><input aria-label="Título da resposta" maxLength={60} value={reply.title} onChange={(e) => setQuickReplies((all) => all.map((x, i) => i === index ? { ...x, title: e.target.value } : x))} placeholder="Nome curto" className={selectClass} /><textarea aria-label="Texto da resposta" maxLength={500} rows={2} value={reply.message} onChange={(e) => setQuickReplies((all) => all.map((x, i) => i === index ? { ...x, message: e.target.value } : x))} placeholder="Mensagem para enviar" className={selectClass} /><button type="button" onClick={() => setQuickReplies((all) => all.filter((_, i) => i !== index))} className="text-xs text-red-200">Remover</button></div>)}
+                    {quickReplies.length < 30 && <button type="button" onClick={adicionarResposta} className="rounded-full border border-white/15 px-4 py-2 text-xs">Adicionar resposta</button>}
+                    <button type="button" onClick={salvarRespostas} disabled={savingReplies} className="ml-2 rounded-full bg-azul px-4 py-2 text-xs font-semibold disabled:opacity-50">{savingReplies ? "Salvando..." : "Salvar respostas"}</button>
+                    {replyMsg && <p role="status" className="text-xs text-silver/70">{replyMsg}</p>}
+                </div>
+            </details>
+
             <div className="mt-4 flex flex-wrap gap-2">
                 {[{ id: "", label: "Todos" }, ...STATUS_LEAD].map((s) => (
                     <button
@@ -325,7 +390,7 @@ export default function LeadsManager() {
             ) : (
                 <ul className="mt-4 space-y-4">
                     {itens.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} onChange={atualizarItem} />
+                        <LeadCard key={lead.id} lead={lead} onChange={atualizarItem} quickReplies={quickReplies} />
                     ))}
                 </ul>
             )}

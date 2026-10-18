@@ -6,10 +6,9 @@ import {
     ADDRESS,
     INSTAGRAM_HANDLE,
     INSTAGRAM_URL,
-    WA_DISPLAY,
-    WA_LINK,
     waMessage,
 } from "@/lib/site";
+import { useSiteConfig } from "@/lib/SiteConfig";
 import { trackClique } from "@/lib/track";
 
 const CIDADES = [
@@ -54,6 +53,7 @@ const inputClass =
     "mt-2 h-12 w-full rounded-xl border border-slate-300 bg-slate-50 px-4 text-[15px] text-graphite transition focus:border-azul focus:bg-white focus:ring-2 focus:ring-azul/20";
 
 export default function Contato() {
+    const { whatsapp, whatsapp_display, horario } = useSiteConfig();
     const [form, setForm] = useState({
         nome: "",
         telefone: "",
@@ -102,7 +102,7 @@ export default function Contato() {
             medidas: form.medidas,
             obs: form.obs,
         });
-        window.open(waMessage(linhas.join("\n")), "_blank");
+        window.open(waMessage(linhas.join("\n"), whatsapp), "_blank");
     };
 
     return (
@@ -129,7 +129,7 @@ export default function Contato() {
                         <a
                             data-testid="contato-whatsapp-link"
                             onClick={() => trackClique("Geral", "Contato - WhatsApp", "contato")}
-                            href={WA_LINK}
+                            href={`https://wa.me/${whatsapp}`}
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center gap-4 rounded-2xl border border-white/10 px-5 py-4 transition-colors duration-300 hover:border-azul/50"
@@ -142,7 +142,7 @@ export default function Contato() {
                                     WhatsApp
                                 </span>
                                 <span className="mt-0.5 block font-display font-semibold text-white">
-                                    {WA_DISPLAY}
+                                    {whatsapp_display}
                                 </span>
                             </span>
                         </a>
@@ -187,7 +187,7 @@ export default function Contato() {
                                     Atendimento
                                 </span>
                                 <span className="mt-0.5 block font-display font-semibold text-white">
-                                    Seg a Qui · 08:00 às 18:00 · Sex até as 17:00
+                                    {horario.replace(/\n/g, " · ")}
                                 </span>
                             </span>
                         </div>

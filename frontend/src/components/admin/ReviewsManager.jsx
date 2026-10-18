@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Pin, PinOff, RefreshCw, Star, Trash2 } from "lucide-react";
 import { authApi, withAuthRefresh } from "@/lib/auth";
+import AdminHelp from "@/components/admin/AdminHelp";
 
 const FILTROS = [
     { id: "todas", label: "Todas" },
@@ -126,6 +127,7 @@ export default function ReviewsManager() {
             data-testid="admin-reviews-panel"
             className="mt-6 rounded-2xl border border-white/10 bg-graphite2 p-6"
         >
+            <AdminHelp className="mb-4">Use os filtros para localizar avaliações. Ocultar mantém o registro no painel sem mostrá-lo no site; excluir remove definitivamente após confirmação.</AdminHelp>
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h2 className="font-display text-lg font-semibold">

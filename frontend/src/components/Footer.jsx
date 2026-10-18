@@ -8,9 +8,8 @@ import {
     INSTAGRAM_HANDLE,
     INSTAGRAM_URL,
     MAPS_EMBED,
-    WA_DISPLAY,
-    WA_LINK,
 } from "@/lib/site";
+import { useSiteConfig } from "@/lib/SiteConfig";
 
 const NAV = [
     { id: "inicio", label: "Início" },
@@ -23,6 +22,7 @@ const NAV = [
 ];
 
 export default function Footer() {
+    const { whatsapp, whatsapp_display, horario } = useSiteConfig();
     return (
         <footer data-testid="footer" className="border-t border-white/10 bg-graphite">
             <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
@@ -78,13 +78,13 @@ export default function Footer() {
                                 <a
                                     data-testid="footer-whatsapp"
                                     onClick={() => trackClique("Geral", "Rodapé - WhatsApp", "footer")}
-                                    href={WA_LINK}
+                                    href={`https://wa.me/${whatsapp}`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="flex gap-3 transition-colors duration-200 hover:text-white"
                                 >
                                     <WhatsAppIcon className="mt-0.5 h-4 w-4 shrink-0 text-azul" />
-                                    {WA_DISPLAY}
+                                    {whatsapp_display}
                                 </a>
                             </li>
                             <li>
@@ -102,9 +102,7 @@ export default function Footer() {
                             <li className="flex gap-3">
                                 <Clock size={16} className="mt-0.5 shrink-0 text-azul" />
                                 <span>
-                                    Segunda a Quinta · 08:00 às 18:00
-                                    <br />
-                                    Sexta-feira · 08:00 às 17:00
+                                    {horario.split("\n").map((linha) => <span key={linha} className="block">{linha}</span>)}
                                 </span>
                             </li>
                         </ul>

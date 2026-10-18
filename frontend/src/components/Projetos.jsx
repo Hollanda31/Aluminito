@@ -3,9 +3,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Reveal from "@/components/Reveal";
 import { WhatsAppIcon } from "@/components/icons";
-import { waOrcamento } from "@/lib/site";
+import { ORCAMENTO_MESSAGE, waMessage } from "@/lib/site";
 import { optimizedImage, optimizedSrcSet } from "@/lib/images";
-import { trackClique } from "@/lib/track";
+import { trackClique, trackProjectMetric } from "@/lib/track";
+import { useSiteConfig } from "@/lib/SiteConfig";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -22,7 +23,7 @@ const CATEGORIES = [
     "Guarda Corpo",
 ];
 
-const PROJECTS = [
+export const PROJECTS = [
     {
         id: 3,
         cat: "Portas",
@@ -144,6 +145,20 @@ const slug = (c) =>
         .replace(/\s+/g, "-");
 
 const photosOf = (p) => (p.imgs ? p.imgs : p.img ? [p.img] : []);
+const mediaSrc = (src) => src?.startsWith("/api/media/")
+    ? `${process.env.REACT_APP_BACKEND_URL || ""}${src}`
+    : src;
+const hojeLocal = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const projetoEmDestaque = (p) => !!p.featured && (!p.featured_from || p.featured_from <= hojeLocal()) && (!p.featured_until || p.featured_until >= hojeLocal());
+const registrarVisualizacao = (projectId, title) => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const key = `aluminito-project-view:${hoje}:${projectId}`;
+    try {
+        if (localStorage.getItem(key)) return;
+        localStorage.setItem(key, "1");
+    } catch {}
+    trackProjectMetric(projectId, title, "view");
+};
 
 const mediaOf = (p) => {
     if (p.media) return p.media;
@@ -159,12 +174,40 @@ const mediaOf = (p) => {
 };
 
 export default function Projetos() {
+    const { whatsapp } = useSiteConfig();
     const [cat, setCat] = useState("Todos");
     const [lightbox, setLightbox] = useState(null);
     const [angle, setAngle] = useState(0);
+    const [projects, setProjects] = useState(PROJECTS);
+
+    useEffect(() => {
+        fetch(`${process.env.REACT_APP_BACKEND_URL || ""}/api/projetos`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                if (data?.configurado) setProjects(data.items.map((p) => ({
+                    ...p,
+                    media: (p.media || []).map((m) => ({ ...m, src: mediaSrc(m.src) })),
+                    img: mediaSrc(p.media?.find((m) => m.type === "image")?.src || p.media?.[0]?.src),
+                })));
+            })
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        if (typeof IntersectionObserver === "undefined") return;
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) registrarVisualizacao(entry.target.dataset.projectId, entry.target.dataset.projectTitle);
+            });
+        }, { threshold: 0.5 });
+        document.querySelectorAll("[data-project-metric]").forEach((node) => observer.observe(node));
+        return () => observer.disconnect();
+    }, [projects, cat]);
 
     const filtered =
-        cat === "Todos" ? PROJECTS : PROJECTS.filter((p) => p.cat === cat);
+        cat === "Todos" ? projects : projects.filter((p) => p.cat === cat);
+
+    const categories = ["Todos", ...new Set(projects.map((p) => p.cat))];
 
     const currentIndex = lightbox
         ? filtered.findIndex((p) => p.id === lightbox.id)
@@ -252,7 +295,7 @@ export default function Projetos() {
                     className="mt-10 flex flex-wrap gap-2"
                     data-testid="projetos-filters"
                 >
-                    {CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                         <button
                             key={c}
                             data-testid={`filter-tab-${slug(c)}`}
@@ -292,15 +335,18 @@ export default function Projetos() {
                                         duration: 0.4,
                                         ease: EASE,
                                     }}
-                                    onClick={() => openProject(p)}
+                                    onClick={() => { registrarVisualizacao(p.id, p.title); openProject(p); }}
                                     data-testid={`projeto-item-${p.id}`}
+                                    data-project-metric="true"
+                                    data-project-id={String(p.id)}
+                                    data-project-title={p.title}
                                     className={`group relative overflow-hidden rounded-2xl text-left ${
                                         p.tall ? "sm:row-span-2" : ""
                                     }`}
                                 >
                                     {coverMedia?.type === "video" ? (
                                         <video
-                                            src={coverMedia.src}
+                                            src={mediaSrc(coverMedia.src)}
                                             muted
                                             playsInline
                                             preload="metadata"
@@ -309,8 +355,8 @@ export default function Projetos() {
                                         />
                                     ) : (
                                         <img
-                                            src={optimizedImage(coverMedia?.src || p.img, 768)}
-                                            srcSet={optimizedSrcSet(coverMedia?.src || p.img)}
+                                            src={optimizedImage(mediaSrc(coverMedia?.src || p.img), 768)}
+                                            srcSet={optimizedSrcSet(mediaSrc(coverMedia?.src || p.img))}
                                             sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                                             decoding="async"
                                             alt={p.title}
@@ -329,12 +375,14 @@ export default function Projetos() {
                                     )}
 
                                     <div className="absolute bottom-0 left-0 p-5">
+                                        {projetoEmDestaque(p) && <span className="mb-2 inline-flex rounded-full bg-azul px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-white">Em destaque</span>}
                                         <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-azul [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">
                                             {p.cat}
                                         </span>
                                         <p className="mt-1 font-display text-base font-semibold text-white [text-shadow:0_1px_10px_rgba(15,23,42,0.9)]">
                                             {p.title}
                                         </p>
+                                        {p.description && <p className="mt-1 line-clamp-2 max-w-md text-xs text-white/80 [text-shadow:0_1px_8px_rgba(15,23,42,0.9)]">{p.description}</p>}
                                     </div>
                                 </motion.button>
                             );
@@ -363,7 +411,7 @@ export default function Projetos() {
                             <a
                                 data-testid="projetos-cta-whatsapp"
                                 onClick={() => trackClique("Geral", "Banner - Quer um projeto parecido", "projetos")}
-                                href={waOrcamento}
+                                href={waMessage(ORCAMENTO_MESSAGE, whatsapp)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex shrink-0 items-center gap-3 rounded-full bg-azul px-7 py-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
@@ -400,7 +448,7 @@ export default function Projetos() {
                                     initial={{ opacity: 0, scale: 0.985 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.3, ease: EASE }}
-                                    src={media[angle].src}
+                                    src={mediaSrc(media[angle].src)}
                                     autoPlay
                                     controls
                                     playsInline
@@ -412,8 +460,8 @@ export default function Projetos() {
                                     initial={{ opacity: 0, scale: 0.985 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ duration: 0.3, ease: EASE }}
-                                    src={optimizedImage(media[angle]?.src, 1600)}
-                                    srcSet={optimizedSrcSet(media[angle]?.src)}
+                                    src={optimizedImage(mediaSrc(media[angle]?.src), 1600)}
+                                    srcSet={optimizedSrcSet(mediaSrc(media[angle]?.src))}
                                     sizes="(max-width: 896px) 100vw, 80vw"
                                     decoding="async"
                                     alt={`${lightbox.title} — ângulo ${angle + 1}`}
@@ -443,11 +491,12 @@ export default function Projetos() {
                                 </>
                             )}
 
-                            <div className="flex items-center justify-between gap-4 bg-graphite px-6 py-4">
+                            <div className="flex flex-wrap items-center justify-between gap-4 bg-graphite px-6 py-4">
                                 <div>
                                     <p className="font-display text-sm font-semibold text-white sm:text-base">
                                         {lightbox.title}
                                     </p>
+                                    {lightbox.description && <p className="mt-1 max-w-xl text-xs leading-relaxed text-silver/70">{lightbox.description}</p>}
 
                                     {totalSlides > 1 && currentIndex >= 0 && (
                                         <p
@@ -477,9 +526,7 @@ export default function Projetos() {
                                     )}
                                 </div>
 
-                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.22em] text-azul">
-                                    {lightbox.cat}
-                                </span>
+                                <div className="flex shrink-0 flex-wrap items-center gap-3"><span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-azul">{lightbox.cat}</span><a data-testid="projeto-orcamento-whatsapp" href={waMessage(`${ORCAMENTO_MESSAGE}\nTenho interesse em um projeto parecido com: ${lightbox.title}.`, whatsapp)} target="_blank" rel="noreferrer" onClick={() => { trackProjectMetric(lightbox.id, lightbox.title, "quote"); trackClique("Projetos", lightbox.title, "projetos", { tipo: "Orçamento", obs: `Interesse na obra ${lightbox.title}` }); }} className="inline-flex items-center gap-2 rounded-full bg-azul px-4 py-2 text-xs font-semibold text-white hover:bg-azul-dark"><WhatsAppIcon className="h-4 w-4" /> Pedir orçamento</a></div>
                             </div>
                         </motion.div>
 

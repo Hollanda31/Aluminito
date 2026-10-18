@@ -8,6 +8,15 @@ export const STATUS_LEAD = [
     { id: "perdido", label: "Perdido", cls: "bg-white/10 text-silver/60" },
 ];
 
+export const PRIORIDADE_LEAD = [
+    { id: "baixa", label: "Baixa", cls: "bg-white/10 text-silver/70" },
+    { id: "media", label: "Média", cls: "bg-sky-400/15 text-sky-300" },
+    { id: "alta", label: "Alta", cls: "bg-red-400/15 text-red-300" },
+];
+
+export const prioridadeInfo = (id) =>
+    PRIORIDADE_LEAD.find((p) => p.id === id) || PRIORIDADE_LEAD[1];
+
 export const statusInfo = (id) =>
     STATUS_LEAD.find((s) => s.id === id) || STATUS_LEAD[0];
 

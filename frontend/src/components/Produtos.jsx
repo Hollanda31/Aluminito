@@ -2,6 +2,7 @@ import Reveal from "@/components/Reveal";
 import { ArrowUpRight } from "lucide-react";
 import { waMessage } from "@/lib/site";
 import { trackClique } from "@/lib/track";
+import { useSiteConfig } from "@/lib/SiteConfig";
 
 const img = (id, w = 1200) =>
     `https://images.unsplash.com/${id}?q=80&w=${w}&auto=format&fit=crop`;
@@ -45,6 +46,7 @@ const PRODUCTS = [
 ];
 
 export default function Produtos() {
+    const { whatsapp } = useSiteConfig();
     return (
         <section
             id="produtos"
@@ -84,6 +86,7 @@ export default function Produtos() {
                                 onClick={() => trackClique("Produtos & Serviços", p.title, "produtos")}
                                 href={waMessage(
                                     `Olá! Gostaria de solicitar um orçamento de ${p.title}.`,
+                                    whatsapp,
                                 )}
                                 target="_blank"
                                 rel="noreferrer"

@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", str(ROOT_DIR / "uploads")))
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 import base64
 import re
@@ -20,7 +22,7 @@ import re
 import bcrypt
 import jwt
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, UploadFile, File
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, field_validator
@@ -160,7 +162,7 @@ async def get_reviews():
 
 @api_router.get("/admin/reviews", response_model=List[Review])
 async def admin_list_reviews(request: Request):
-    await get_current_user(request)
+    await require_permission(request, "avaliacoes")
     reviews = (
         await db.reviews.find({}, {"_id": 0})
         .sort([
@@ -182,7 +184,7 @@ async def admin_update_review_status(
     input: ReviewStatusUpdate,
     request: Request,
 ):
-    await get_current_user(request)
+    actor = await require_permission(request, "avaliacoes")
     result = await db.reviews.find_one_and_update(
         {"id": review_id},
         {"$set": {"status": input.status}},
@@ -194,6 +196,7 @@ async def admin_update_review_status(
             status_code=404,
             detail="Avaliacao nao encontrada",
         )
+    await log_admin_action(actor, "Status de avaliação alterado", {"id": review_id, "status": input.status})
     return result
 
 
@@ -206,7 +209,7 @@ async def admin_update_review_featured(
     input: ReviewFeaturedUpdate,
     request: Request,
 ):
-    await get_current_user(request)
+    actor = await require_permission(request, "avaliacoes")
     result = await db.reviews.find_one_and_update(
         {"id": review_id},
         {
@@ -227,19 +230,23 @@ async def admin_update_review_featured(
             status_code=404,
             detail="Avaliacao nao encontrada",
         )
+    await log_admin_action(actor, "Destaque de avaliação alterado", {"id": review_id, "destaque": input.featured})
     return result
 
 
 
 @api_router.delete("/admin/reviews/{review_id}", status_code=204)
 async def admin_delete_review(review_id: str, request: Request):
-    await get_current_user(request)
-    result = await db.reviews.delete_one({"id": review_id})
-    if result.deleted_count == 0:
+    actor = await require_permission(request, "avaliacoes")
+    review = await db.reviews.find_one({"id": review_id}, {"_id": 0})
+    if not review:
         raise HTTPException(
             status_code=404,
             detail="Avaliacao nao encontrada",
         )
+    await db.site_trash.insert_one({"id": str(uuid.uuid4()), "kind": "review", "title": review.get("name", "Avaliação"), "data": review, "deleted_at": datetime.now(timezone.utc).isoformat(), "deleted_by": actor.get("email")})
+    await db.reviews.delete_one({"id": review_id})
+    await log_admin_action(actor, "Avaliação movida para a lixeira", {"id": review_id, "nome": review.get("name")})
     return None
 
 
@@ -533,7 +540,7 @@ async def simular_prewarm(input: PrewarmRequest, request: Request):
     """Pre-gera (em segundo plano) as cores mais simuladas que ainda nao
     estao em cache. Cada imagem nova consome creditos da IA."""
     validate_origin(request)
-    await get_current_user(request)
+    await require_permission(request, "relatorios")
     tipos = [t for t in input.tipos if t in SIM_TIPOS]
     top = (
         await db.simulation_events.aggregate(
@@ -577,6 +584,8 @@ async def simular_prewarm(input: PrewarmRequest, request: Request):
 # --- Rastreamento de atendimentos (cliques para o WhatsApp) ---
 LEAD_STATUS = ["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
 LeadStatus = Literal["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
+LeadPriority = Literal["baixa", "media", "alta"]
+LeadLossReason = Literal["preco", "prazo", "concorrente", "desistiu", "sem_resposta", "outro"]
 DADOS_CAMPOS = (
     "nome",
     "telefone",
@@ -609,6 +618,12 @@ class TrackEvent(BaseModel):
         return limpo
 
 
+class ProjectMetricInput(BaseModel):
+    project_id: str = Field(min_length=1, max_length=120)
+    title: str = Field(min_length=1, max_length=120)
+    action: Literal["view", "quote"]
+
+
 @api_router.post("/track", status_code=201)
 async def track_event(input: TrackEvent):
     doc = {
@@ -623,8 +638,26 @@ async def track_event(input: TrackEvent):
     return {"ok": True}
 
 
+@api_router.post("/track/project", status_code=202)
+async def track_project_metric(input: ProjectMetricInput, request: Request):
+    validate_origin(request)
+    today = datetime.now(timezone.utc).date().isoformat()
+    key = f"{input.project_id}:{today}"
+    metric = "views" if input.action == "view" else "quotes"
+    await db.project_metrics.update_one(
+        {"_id": key},
+        {"$setOnInsert": {"project_id": input.project_id, "day": today},
+         "$set": {"title": input.title.strip()},
+         "$inc": {metric: 1}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
 class LeadUpdate(BaseModel):
     status: Optional[LeadStatus] = None
+    prioridade: Optional[LeadPriority] = None
+    motivo_perda: Optional[LeadLossReason] = None
     nota: Optional[str] = Field(default=None, max_length=500)
     # True = o botao "Pedir avaliacao" foi usado (guarda a data)
     avaliacao_pedida: Optional[bool] = None
@@ -632,6 +665,7 @@ class LeadUpdate(BaseModel):
 
 def _lead_out(doc: dict) -> dict:
     doc.setdefault("status", "novo")
+    doc.setdefault("prioridade", "media")
     return doc
 
 
@@ -679,7 +713,7 @@ async def admin_leads(
     limit: int = 50,
     skip: int = 0,
 ):
-    await get_current_user(request)
+    await require_permission(request, "atendimentos")
     limit = max(1, min(limit, 200))
     skip = max(0, skip)
     filtro = _lead_filtro(periodo, status, q)
@@ -709,7 +743,7 @@ async def admin_leads_export(
     status: str = "",
     q: str = "",
 ):
-    await get_current_user(request)
+    await require_permission(request, "atendimentos")
     itens = (
         await db.lead_events.find(_lead_filtro(periodo, status, q), {"_id": 0})
         .sort("timestamp", -1)
@@ -729,6 +763,7 @@ async def admin_leads_export(
             "Data",
             "Hora",
             "Status",
+            "Motivo da perda",
             "Categoria",
             "Item",
             "Origem",
@@ -755,6 +790,7 @@ async def admin_leads_export(
             data,
             hora,
             rotulos.get(ev.get("status", "novo"), "Novo"),
+            ev.get("motivo_perda", ""),
             ev.get("grupo"),
             ev.get("item"),
             ev.get("origem"),
@@ -782,10 +818,22 @@ async def admin_leads_export(
 @api_router.patch("/admin/leads/{lead_id}")
 async def admin_update_lead(lead_id: str, input: LeadUpdate, request: Request):
     validate_origin(request)
-    await get_current_user(request)
+    actor = await require_permission(request, "atendimentos")
     campos = {}
     if input.status is not None:
         campos["status"] = input.status
+        if input.status == "perdido":
+            current_lead = await db.lead_events.find_one({"id": lead_id}, {"_id": 0, "motivo_perda": 1, "status": 1})
+            if not current_lead:
+                raise HTTPException(status_code=404, detail="Atendimento nao encontrado")
+            reason = input.motivo_perda or (current_lead.get("motivo_perda") if current_lead.get("status") == "perdido" else None)
+            if not reason:
+                raise HTTPException(status_code=400, detail="Selecione o motivo da perda")
+            campos["motivo_perda"] = reason
+    elif input.motivo_perda is not None:
+        raise HTTPException(status_code=400, detail="O motivo só pode ser salvo em atendimento perdido")
+    if input.prioridade is not None:
+        campos["prioridade"] = input.prioridade
     if input.nota is not None:
         campos["nota"] = input.nota.strip()
     agora = datetime.now(timezone.utc).isoformat()
@@ -802,14 +850,47 @@ async def admin_update_lead(lead_id: str, input: LeadUpdate, request: Request):
     )
     if not result:
         raise HTTPException(status_code=404, detail="Atendimento nao encontrado")
+    await log_admin_action(actor, "Atendimento atualizado", {"id": lead_id, "campos": list(campos.keys())})
     return _lead_out(result)
+
+
+class QuickReply(BaseModel):
+    id: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=60)
+    message: str = Field(min_length=1, max_length=500)
+
+
+class QuickRepliesUpdate(BaseModel):
+    items: list[QuickReply] = Field(max_length=30)
+
+
+@api_router.get("/admin/quick-replies")
+async def admin_get_quick_replies(request: Request):
+    await require_permission(request, "atendimentos")
+    saved = await db.site_settings.find_one({"key": "quick_replies"}, {"_id": 0, "items": 1})
+    return {"items": (saved or {}).get("items", [])}
+
+
+@api_router.put("/admin/quick-replies")
+async def admin_save_quick_replies(input: QuickRepliesUpdate, request: Request):
+    actor = await require_permission(request, "atendimentos")
+    items = [item.model_dump() for item in input.items]
+    if len({item["id"] for item in items}) != len(items):
+        raise HTTPException(status_code=400, detail="Cada resposta precisa ter um identificador único")
+    await db.site_settings.update_one(
+        {"key": "quick_replies"},
+        {"$set": {"items": items, "atualizado_em": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    await log_admin_action(actor, "Respostas rápidas atualizadas", {"quantidade": len(items)})
+    return {"items": items}
 
 
 @api_router.get("/admin/leads/retornar")
 async def admin_leads_retornar(request: Request, dias: int = 3):
     """Atendimentos 'em conversa' ou 'orcamento enviado' sem movimento ha
     `dias` dias ou mais. Mudar status ou editar a nota conta como movimento."""
-    await get_current_user(request)
+    await require_permission(request, "atendimentos")
     dias = max(1, min(dias, 60))
     agora = datetime.now(timezone.utc)
     limite = (agora - timedelta(days=dias)).isoformat()
@@ -862,14 +943,14 @@ async def aviso_publico(response: Response):
 
 @api_router.get("/admin/aviso")
 async def admin_aviso(request: Request):
-    await get_current_user(request)
+    await require_permission(request, "aviso")
     return await _aviso_doc()
 
 
 @api_router.put("/admin/aviso")
 async def admin_salvar_aviso(input: AvisoIn, request: Request):
     validate_origin(request)
-    await get_current_user(request)
+    actor = await require_permission(request, "aviso")
     texto = input.texto.strip()
     if input.ativo and not texto:
         raise HTTPException(
@@ -882,7 +963,231 @@ async def admin_salvar_aviso(input: AvisoIn, request: Request):
         "atualizado_em": datetime.now(timezone.utc).isoformat(),
     }
     await db.site_settings.update_one({"key": "aviso"}, {"$set": doc}, upsert=True)
+    await log_admin_action(actor, "Aviso do site atualizado", {"ativo": input.ativo})
     return doc
+
+
+SITE_DEFAULTS = {
+    "whatsapp": "5527998682220",
+    "whatsapp_display": "(27) 99868-2220",
+    "horario": "Segunda a Quinta · 08:00 às 18:00\nSexta-feira · 08:00 às 17:00",
+}
+
+
+@api_router.get("/site-config")
+async def public_site_config():
+    doc = await db.site_settings.find_one({"key": "contato"}, {"_id": 0}) or {}
+    return {**SITE_DEFAULTS, **{k: doc[k] for k in SITE_DEFAULTS if k in doc}}
+
+
+class SiteConfigIn(BaseModel):
+    whatsapp: str = Field(min_length=10, max_length=20)
+    whatsapp_display: str = Field(min_length=5, max_length=30)
+    horario: str = Field(min_length=3, max_length=300)
+
+
+@api_router.put("/admin/site-config")
+async def admin_save_site_config(input: SiteConfigIn, request: Request):
+    validate_origin(request)
+    actor = await require_permission(request, "contato")
+    doc = {"key": "contato", **input.model_dump(), "atualizado_em": datetime.now(timezone.utc).isoformat()}
+    doc["whatsapp"] = re.sub(r"\D", "", doc["whatsapp"])
+    if len(doc["whatsapp"]) < 10:
+        raise HTTPException(status_code=400, detail="Informe o telefone com DDD")
+    await db.site_settings.update_one({"key": "contato"}, {"$set": doc}, upsert=True)
+    await log_admin_action(actor, "Contato e horário atualizados")
+    return {k: doc[k] for k in SITE_DEFAULTS}
+
+
+@api_router.get("/projetos")
+async def public_projects():
+    doc = await db.site_settings.find_one({"key": "projetos"}, {"_id": 0, "items": 1})
+    items = (doc or {}).get("items", [])
+    hoje = datetime.now(BR_TZ).strftime("%Y-%m-%d")
+    def destaque_ativo(item):
+        inicio = item.get("featured_from") or ""
+        fim = item.get("featured_until") or "9999-12-31"
+        return bool(item.get("featured")) and inicio <= hoje <= fim
+    items = sorted(items, key=lambda item: (not destaque_ativo(item), item.get("order", 0)))
+    return {"items": items, "configurado": doc is not None}
+
+
+class ProjectsIn(BaseModel):
+    items: list[dict] = Field(max_length=100)
+    baseline_items: list[dict] = Field(default_factory=list, max_length=100)
+
+
+@api_router.put("/admin/projetos")
+async def admin_save_projects(input: ProjectsIn, request: Request):
+    validate_origin(request)
+    actor = await require_permission(request, "projetos")
+    items = []
+    for index, item in enumerate(input.items):
+        title = str(item.get("title", "")).strip()[:120]
+        category = str(item.get("cat", "")).strip()[:80]
+        description = str(item.get("description", "")).strip()[:400]
+        media = item.get("media", [])
+        if not title or not category or not isinstance(media, list) or len(media) > 100:
+            raise HTTPException(status_code=400, detail="Revise o título, categoria e mídias dos projetos")
+        clean_media = []
+        for entry in media:
+            src = str(entry.get("src", ""))
+            projeto_estatico = src.startswith("/projects/") and ".." not in Path(src).parts
+            arquivo_enviado = re.fullmatch(r"/api/media/[a-f0-9]{32}\.(jpg|jpeg|png|webp|mp4|webm)", src)
+            if not (projeto_estatico or arquivo_enviado):
+                raise HTTPException(status_code=400, detail="Mídia de projeto inválida")
+            kind = entry.get("type")
+            if kind not in {"image", "video"}:
+                raise HTTPException(status_code=400, detail="Tipo de mídia inválido")
+            clean_media.append({"type": kind, "src": src})
+        if not clean_media:
+            raise HTTPException(status_code=400, detail="Cada projeto precisa de ao menos uma foto ou vídeo")
+        inicio = str(item.get("featured_from") or "")
+        fim = str(item.get("featured_until") or "")
+        if any(v and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v) for v in (inicio, fim)) or (inicio and fim and fim < inicio):
+            raise HTTPException(status_code=400, detail="Revise o período do destaque")
+        destaque = bool(item.get("featured", False))
+        if destaque and not fim:
+            raise HTTPException(status_code=400, detail="Defina uma data final para o destaque")
+        items.append({"id": str(item.get("id") or uuid.uuid4()), "cat": category, "title": title, "description": description, "media": clean_media, "tall": bool(item.get("tall", False)), "order": index, "featured": destaque, "featured_from": inicio, "featured_until": fim})
+    baseline = input.baseline_items[:100]
+    await db.site_settings.update_one({"key": "projetos_draft"}, {"$set": {"items": items, "baseline_items": baseline, "atualizado_em": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    await log_admin_action(actor, "Rascunho de obras salvo", {"quantidade": len(items)})
+    return {"items": items}
+
+
+@api_router.get("/admin/projetos/draft")
+async def admin_get_projects_draft(request: Request):
+    await require_permission(request, "projetos")
+    draft = await db.site_settings.find_one({"key": "projetos_draft"}, {"_id": 0, "items": 1})
+    published = await db.site_settings.find_one({"key": "projetos"}, {"_id": 0, "items": 1})
+    return {"items": (draft or published or {}).get("items", []), "baseline_items": (published or {}).get("items", (draft or {}).get("baseline_items", [])), "rascunho": draft is not None, "configurado": draft is not None or published is not None}
+
+
+@api_router.get("/admin/projetos/metrics")
+async def admin_project_metrics(request: Request, dias: int = 30):
+    await require_permission(request, "projetos")
+    dias = max(1, min(dias, 365))
+    since = (datetime.now(timezone.utc).date() - timedelta(days=dias - 1)).isoformat()
+    rows = await db.project_metrics.aggregate([
+        {"$match": {"day": {"$gte": since}}},
+        {"$group": {
+            "_id": "$project_id",
+            "title": {"$last": "$title"},
+            "visualizacoes": {"$sum": {"$ifNull": ["$views", 0]}},
+            "pedidos": {"$sum": {"$ifNull": ["$quotes", 0]}},
+        }},
+        {"$sort": {"visualizacoes": -1}},
+    ]).to_list(500)
+    return [{"project_id": row["_id"], "title": row.get("title", ""), "visualizacoes": row["visualizacoes"], "pedidos": row["pedidos"]} for row in rows]
+
+
+@api_router.post("/admin/projetos/publicar")
+async def admin_publish_projects(request: Request):
+    actor = await require_permission(request, "projetos")
+    draft = await db.site_settings.find_one({"key": "projetos_draft"}, {"_id": 0})
+    if not draft:
+        raise HTTPException(status_code=400, detail="Salve um rascunho antes de publicar")
+    old = await db.site_settings.find_one({"key": "projetos"}, {"_id": 0}) or {"items": draft.get("baseline_items", [])}
+    old_by_id = {str(p.get("id")): p for p in old.get("items", [])}
+    new_by_id = {str(p.get("id")): p for p in draft.get("items", [])}
+    agora = datetime.now(timezone.utc).isoformat()
+    for project_id, project in old_by_id.items():
+        if project_id not in new_by_id:
+            await db.site_trash.insert_one({"id": str(uuid.uuid4()), "kind": "project", "title": project.get("title", "Obra"), "data": project, "deleted_at": agora, "deleted_by": actor["email"]})
+            continue
+        old_media = project.get("media", [])
+        new_media = {(m.get("type"), m.get("src")) for m in new_by_id[project_id].get("media", [])}
+        for media in old_media:
+            if (media.get("type"), media.get("src")) not in new_media:
+                await db.site_trash.insert_one({"id": str(uuid.uuid4()), "kind": "media", "title": f"Mídia — {project.get('title', 'Obra')}", "project_id": project_id, "data": media, "deleted_at": agora, "deleted_by": actor["email"]})
+    await db.site_settings.update_one({"key": "projetos"}, {"$set": {"items": draft.get("items", []), "atualizado_em": agora}}, upsert=True)
+    await db.site_settings.delete_one({"key": "projetos_draft"})
+    await log_admin_action(actor, "Galeria publicada", {"quantidade": len(draft.get("items", []))})
+    return {"ok": True, "items": draft.get("items", [])}
+
+
+@api_router.get("/catalogo/cores")
+async def public_catalog_colors():
+    doc = await db.site_settings.find_one({"key": "catalogo_cores"}, {"_id": 0, "items": 1})
+    return {"items": (doc or {}).get("items", [])}
+
+
+class CatalogColorsIn(BaseModel):
+    items: list[dict] = Field(max_length=200)
+
+
+@api_router.put("/admin/catalogo/cores")
+async def admin_save_catalog_colors(input: CatalogColorsIn, request: Request):
+    validate_origin(request)
+    actor = await require_permission(request, "catalogo")
+    items = []
+    for item in input.items:
+        arquivo = str(item.get("arq", ""))
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}\.(jpg|jpeg|png|webp)", arquivo, re.I):
+            raise HTTPException(status_code=400, detail="Arquivo de cor inválido")
+        items.append({"arq": arquivo, "ativo": bool(item.get("ativo", True)), "mais_pedida": bool(item.get("mais_pedida", False))})
+    await db.site_settings.update_one({"key": "catalogo_cores_draft"}, {"$set": {"items": items, "atualizado_em": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    await log_admin_action(actor, "Rascunho do catálogo salvo", {"quantidade": len(items)})
+    return {"items": items}
+
+
+@api_router.get("/admin/catalogo/cores/draft")
+async def admin_get_catalog_draft(request: Request):
+    await require_permission(request, "catalogo")
+    draft = await db.site_settings.find_one({"key": "catalogo_cores_draft"}, {"_id": 0, "items": 1})
+    published = await db.site_settings.find_one({"key": "catalogo_cores"}, {"_id": 0, "items": 1})
+    return {"items": (draft or published or {}).get("items", []), "rascunho": draft is not None}
+
+
+@api_router.post("/admin/catalogo/cores/publicar")
+async def admin_publish_catalog(request: Request):
+    actor = await require_permission(request, "catalogo")
+    draft = await db.site_settings.find_one({"key": "catalogo_cores_draft"}, {"_id": 0})
+    if not draft:
+        raise HTTPException(status_code=400, detail="Salve um rascunho antes de publicar")
+    await db.site_settings.update_one({"key": "catalogo_cores"}, {"$set": {"items": draft.get("items", []), "atualizado_em": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    await db.site_settings.delete_one({"key": "catalogo_cores_draft"})
+    await log_admin_action(actor, "Catálogo publicado", {"quantidade": len(draft.get("items", []))})
+    return {"ok": True}
+
+
+@api_router.get("/admin/trash")
+async def admin_list_trash(request: Request, limit: int = 200):
+    await require_permission(request, "lixeira")
+    rows = await db.site_trash.find({}, {"_id": 0}).sort("deleted_at", -1).to_list(max(1, min(limit, 500)))
+    return rows
+
+
+@api_router.post("/admin/trash/{trash_id}/restore")
+async def admin_restore_trash(trash_id: str, request: Request):
+    actor = await require_permission(request, "lixeira")
+    entry = await db.site_trash.find_one({"id": trash_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Item não encontrado na lixeira")
+    if entry["kind"] == "review":
+        if not await db.reviews.find_one({"id": entry["data"]["id"]}):
+            await db.reviews.insert_one(entry["data"])
+    else:
+        doc = await db.site_settings.find_one({"key": "projetos"}, {"_id": 0}) or {"items": []}
+        items = doc.get("items", [])
+        if entry["kind"] == "project":
+            if not any(p.get("id") == entry["data"].get("id") for p in items):
+                items.append(entry["data"])
+        elif entry["kind"] == "media":
+            project = next((p for p in items if p.get("id") == entry.get("project_id")), None)
+            if not project:
+                raise HTTPException(status_code=409, detail="Restaure a obra primeiro")
+            if not any(m.get("src") == entry["data"].get("src") for m in project.get("media", [])):
+                project.setdefault("media", []).append(entry["data"])
+        else:
+            raise HTTPException(status_code=400, detail="Tipo de item inválido")
+        for index, project in enumerate(items):
+            project["order"] = index
+        await db.site_settings.update_one({"key": "projetos"}, {"$set": {"items": items, "atualizado_em": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    await db.site_trash.delete_one({"id": trash_id})
+    await log_admin_action(actor, "Item restaurado da lixeira", {"tipo": entry["kind"], "item": entry.get("title")})
+    return {"ok": True}
 
 
 # --- Autenticacao do painel admin (JWT em cookies httpOnly) ---
@@ -908,35 +1213,37 @@ def get_jwt_secret() -> str:
     return os.environ["JWT_SECRET"]
 
 
-def create_access_token(user_id: str, email: str) -> str:
+def create_access_token(user_id: str, email: str, session_id: str | None = None) -> str:
     payload = {
         "sub": user_id,
         "email": email,
         "exp": datetime.now(timezone.utc)
         + timedelta(minutes=ACCESS_TOKEN_MINUTES),
         "type": "access",
+        "sid": session_id,
     }
     return jwt.encode(
         payload, get_jwt_secret(), algorithm=JWT_ALGORITHM
     )
 
 
-def create_refresh_token(user_id: str) -> str:
+def create_refresh_token(user_id: str, session_id: str | None = None) -> str:
     payload = {
         "sub": user_id,
         "exp": datetime.now(timezone.utc)
         + timedelta(days=REFRESH_TOKEN_DAYS),
         "type": "refresh",
+        "sid": session_id,
     }
     return jwt.encode(
         payload, get_jwt_secret(), algorithm=JWT_ALGORITHM
     )
 
 
-def set_auth_cookies(response: Response, user_id: str, email: str) -> None:
+def set_auth_cookies(response: Response, user_id: str, email: str, session_id: str | None = None) -> None:
     response.set_cookie(
         "access_token",
-        create_access_token(user_id, email),
+        create_access_token(user_id, email, session_id),
         httponly=True,
         secure=True,
         samesite="none",
@@ -945,7 +1252,7 @@ def set_auth_cookies(response: Response, user_id: str, email: str) -> None:
     )
     response.set_cookie(
         "refresh_token",
-        create_refresh_token(user_id),
+        create_refresh_token(user_id, session_id),
         httponly=True,
         secure=True,
         samesite="none",
@@ -969,11 +1276,22 @@ def decode_token(token: str, expected_type: str) -> dict:
 
 
 def user_public(user: dict) -> dict:
+    role = user.get("role", "admin")
+    if role == "admin":  # Compatibilidade com contas criadas antes dos cargos novos.
+        role = "chefe"
+    defaults = {
+        "chefe": ["atendimentos", "relatorios", "avaliacoes", "aviso", "contato", "projetos", "catalogo", "usuarios", "permissoes", "auditoria", "lixeira"],
+        "gerente": ["atendimentos", "relatorios", "avaliacoes", "aviso", "contato", "projetos", "catalogo", "lixeira"],
+        "atendente": ["atendimentos"],
+    }
+    permissions = defaults["chefe"] if role == "chefe" else user.get("permissions", defaults.get(role, defaults["atendente"]))
     return {
         "id": str(user["_id"]),
         "email": user["email"],
         "name": user.get("name", "Admin"),
-        "role": user.get("role", "admin"),
+        "role": role if role in {"chefe", "gerente", "atendente"} else "atendente",
+        "permissions": permissions,
+        "active": user.get("active", True),
     }
 
 
@@ -983,9 +1301,24 @@ async def user_from_payload(payload: dict) -> dict:
     except Exception:
         raise HTTPException(status_code=401, detail="Token invalido")
     user = await db.users.find_one({"_id": user_id})
-    if not user:
+    if not user or not user.get("active", True):
         raise HTTPException(status_code=401, detail="Usuario nao encontrado")
     return user_public(user)
+
+
+async def create_admin_session(user_id: str, request: Request) -> str:
+    session_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    await db.admin_sessions.insert_one({
+        "id": session_id,
+        "user_id": user_id,
+        "created_at": now.isoformat(),
+        "last_seen": now.isoformat(),
+        "expires_at": now + timedelta(days=REFRESH_TOKEN_DAYS),
+        "ip": client_identifier(request),
+        "user_agent": request.headers.get("user-agent", "")[:200],
+    })
+    return session_id
 
 
 def validate_origin(request: Request) -> None:
@@ -1021,12 +1354,275 @@ async def get_current_user(request: Request) -> dict:
             token = auth[7:]
     if not token:
         raise HTTPException(status_code=401, detail="Nao autenticado")
-    return await user_from_payload(decode_token(token, "access"))
+    payload = decode_token(token, "access")
+    user = await user_from_payload(payload)
+    session_id = payload.get("sid")
+    if session_id and not await db.admin_sessions.find_one({"id": session_id, "user_id": user["id"]}):
+        raise HTTPException(status_code=401, detail="Sessao encerrada")
+    return user
+
+
+async def require_admin(request: Request) -> dict:
+    return await require_permission(request, "projetos")
+
+
+async def require_chief(request: Request) -> dict:
+    user = await get_current_user(request)
+    if user.get("role") not in {"chefe", "admin"}:
+        raise HTTPException(status_code=403, detail="Acesso restrito ao chefe")
+    return user
+
+
+async def require_permission(request: Request, permission: str) -> dict:
+    user = await get_current_user(request)
+    if permission not in user.get("permissions", []):
+        raise HTTPException(status_code=403, detail="Você não tem permissão para esta função")
+    return user
+
+
+async def log_admin_action(actor: dict, action: str, details: dict | None = None) -> None:
+    await db.admin_audit.insert_one({
+        "id": str(uuid.uuid4()), "actor_id": actor["id"],
+        "actor_name": actor.get("name", actor.get("email", "Usuário")),
+        "actor_email": actor.get("email", ""), "action": action,
+        "details": details or {}, "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+
+ADMIN_PERMISSION_KEYS = ["atendimentos", "relatorios", "avaliacoes", "aviso", "contato", "projetos", "catalogo", "lixeira", "auditoria"]
+
+
+class UserPermissionsIn(BaseModel):
+    permissions: list[str] = Field(max_length=20)
+
+
+class RolePermissionsIn(BaseModel):
+    roles: dict[str, list[str]]
+
+
+@api_router.get("/admin/role-permissions")
+async def admin_get_role_permissions(request: Request):
+    await require_permission(request, "permissoes")
+    saved = await db.site_settings.find_one({"key": "role_permissions"}, {"_id": 0, "roles": 1})
+    defaults = {
+        "gerente": ["atendimentos", "relatorios", "avaliacoes", "aviso", "contato", "projetos", "catalogo", "lixeira"],
+        "atendente": ["atendimentos"],
+    }
+    saved_roles = (saved or {}).get("roles") or {}
+    return {"roles": {role: saved_roles.get(role, default) for role, default in defaults.items()}}
+
+
+@api_router.put("/admin/role-permissions")
+async def admin_save_role_permissions(input: RolePermissionsIn, request: Request):
+    actor = await require_permission(request, "permissoes")
+    if set(input.roles) != {"gerente", "atendente"}:
+        raise HTTPException(status_code=400, detail="Configure gerente e atendente")
+    roles = {}
+    for role, values in input.roles.items():
+        if len(values) != len(set(values)) or any(p not in ADMIN_PERMISSION_KEYS for p in values):
+            raise HTTPException(status_code=400, detail="A configuração inclui uma permissão inválida")
+        if role == "gerente" and "atendimentos" not in values:
+            raise HTTPException(status_code=400, detail="O gerente precisa manter acesso aos atendimentos")
+        if role == "atendente" and "atendimentos" not in values:
+            raise HTTPException(status_code=400, detail="O atendente precisa manter acesso aos atendimentos")
+        roles[role] = sorted(set(values))
+    await db.site_settings.update_one({"key": "role_permissions"}, {"$set": {"roles": roles, "atualizado_em": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    for role, permissions in roles.items():
+        await db.users.update_many({"role": role}, {"$set": {"permissions": permissions}})
+    await log_admin_action(actor, "Permissões por cargo atualizadas", {"cargos": list(roles)})
+    return {"roles": roles}
+
+
+@api_router.patch("/admin/users/{user_id}/permissions")
+async def admin_update_user_permissions(user_id: str, input: UserPermissionsIn, request: Request):
+    actor = await require_permission(request, "permissoes")
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    target = await db.users.find_one({"_id": oid})
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    role = "chefe" if target.get("role") == "admin" else target.get("role", "atendente")
+    if role == "chefe":
+        raise HTTPException(status_code=400, detail="As permissões do chefe são fixas")
+    if len(set(input.permissions)) != len(input.permissions) or any(p not in ADMIN_PERMISSION_KEYS for p in input.permissions):
+        raise HTTPException(status_code=400, detail="A lista contém uma permissão inválida")
+    allowed = sorted(set(input.permissions))
+    await db.users.update_one({"_id": oid}, {"$set": {"permissions": allowed}})
+    await log_admin_action(actor, "Permissões alteradas", {"usuário": target["email"], "permissões": allowed})
+    return {"id": user_id, "permissions": allowed}
+
+
+@api_router.get("/admin/audit")
+async def admin_audit_log(request: Request, limit: int = 100):
+    await require_permission(request, "auditoria")
+    limit = max(1, min(limit, 300))
+    rows = await db.admin_audit.find({}, {"_id": 0}).sort("timestamp", -1).to_list(limit)
+    return rows
+
+
+def safe_upload_name(filename: str) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".webm"}:
+        raise HTTPException(status_code=400, detail="Formato não permitido")
+    return f"{uuid.uuid4().hex}{suffix}"
+
+
+@api_router.get("/media/{filename}")
+async def public_media(filename: str):
+    if Path(filename).name != filename:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    path = UPLOAD_DIR / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return FileResponse(path)
+
+
+@api_router.post("/admin/media", status_code=201)
+async def upload_media(request: Request, file: UploadFile = File(...)):
+    validate_origin(request)
+    actor = await require_permission(request, "projetos")
+    filename = safe_upload_name(file.filename or "")
+    content = await file.read(30 * 1024 * 1024 + 1)
+    if not content or len(content) > 30 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Arquivo vazio ou maior que 30 MB")
+    (UPLOAD_DIR / filename).write_bytes(content)
+    await log_admin_action(actor, "Mídia enviada", {"arquivo": filename, "bytes": len(content)})
+    return {"url": f"/api/media/{filename}", "filename": filename}
 
 
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class PasswordChange(BaseModel):
+    senha_atual: str = Field(min_length=1, max_length=200)
+    senha_nova: str = Field(min_length=10, max_length=200)
+
+
+class UserCreate(BaseModel):
+    email: str = Field(min_length=5, max_length=200)
+    name: str = Field(min_length=2, max_length=80)
+    password: str = Field(min_length=10, max_length=200)
+    role: Literal["chefe", "gerente", "atendente"] = "atendente"
+
+
+@api_router.post("/auth/change-password")
+async def auth_change_password(input: PasswordChange, request: Request):
+    validate_origin(request)
+    user = await get_current_user(request)
+    doc = await db.users.find_one({"email": user["email"]})
+    if not doc or not verify_password(input.senha_atual, doc.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    if input.senha_atual == input.senha_nova:
+        raise HTTPException(status_code=400, detail="Escolha uma senha diferente da atual")
+    await db.users.update_one({"_id": doc["_id"]}, {"$set": {"password_hash": hash_password(input.senha_nova)}})
+    await log_admin_action(user, "Senha alterada")
+    return {"ok": True}
+
+
+@api_router.get("/admin/users")
+async def admin_list_users(request: Request):
+    await require_permission(request, "usuarios")
+    users = await db.users.find({}, {"email": 1, "name": 1, "role": 1, "permissions": 1, "active": 1}).to_list(200)
+    return [{**user_public(u), "id": str(u["_id"])} for u in users]
+
+
+@api_router.post("/admin/users", status_code=201)
+async def admin_create_user(input: UserCreate, request: Request):
+    actor = await require_permission(request, "usuarios")
+    if input.role == "chefe" and actor.get("role") not in {"chefe", "admin"}:
+        raise HTTPException(status_code=403, detail="Somente o chefe pode criar outro chefe")
+    email = input.email.strip().lower()
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+        raise HTTPException(status_code=400, detail="E-mail inválido")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=409, detail="Já existe um usuário com esse e-mail")
+    user = {"email": email, "name": input.name.strip(), "role": input.role, "active": True, "password_hash": hash_password(input.password), "created_at": datetime.now(timezone.utc).isoformat()}
+    if input.role != "chefe":
+        saved = await db.site_settings.find_one({"key": "role_permissions"}, {"_id": 0, "roles": 1})
+        if (saved or {}).get("roles", {}).get(input.role) is not None:
+            user["permissions"] = saved["roles"][input.role]
+    result = await db.users.insert_one(user)
+    await log_admin_action(actor, "Usuário criado", {"email": email, "cargo": user["role"]})
+    return {"id": str(result.inserted_id), "email": email, "name": user["name"], "role": user["role"]}
+
+
+@api_router.delete("/admin/users/{user_id}", status_code=204)
+async def admin_delete_user(user_id: str, request: Request):
+    current = await require_permission(request, "usuarios")
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if user_id == current["id"]:
+        raise HTTPException(status_code=400, detail="Você não pode remover seu próprio acesso")
+    user = await db.users.find_one({"_id": oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if user.get("role") in {"admin", "chefe"} and current.get("role") not in {"chefe", "admin"}:
+        raise HTTPException(status_code=403, detail="Somente o chefe pode remover outro chefe")
+    if user.get("role") in {"admin", "chefe"} and await db.users.count_documents({"role": {"$in": ["admin", "chefe"]}}) <= 1:
+        raise HTTPException(status_code=400, detail="Mantenha ao menos um chefe")
+    await db.users.delete_one({"_id": oid})
+    await db.admin_sessions.delete_many({"user_id": user_id})
+    await log_admin_action(current, "Usuário removido", {"email": user["email"], "cargo": user.get("role")})
+    return None
+
+
+class UserActiveUpdate(BaseModel):
+    active: bool
+
+
+@api_router.patch("/admin/users/{user_id}/active")
+async def admin_set_user_active(user_id: str, input: UserActiveUpdate, request: Request):
+    actor = await require_chief(request)
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if user_id == actor["id"]:
+        raise HTTPException(status_code=400, detail="Você não pode desativar seu próprio acesso")
+    target = await db.users.find_one({"_id": oid})
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if not input.active and target.get("role") in {"admin", "chefe"}:
+        active_chiefs = await db.users.count_documents({"role": {"$in": ["admin", "chefe"]}, "active": {"$ne": False}})
+        if active_chiefs <= 1:
+            raise HTTPException(status_code=400, detail="Mantenha ao menos um chefe ativo")
+    await db.users.update_one({"_id": oid}, {"$set": {"active": input.active}})
+    if not input.active:
+        await db.admin_sessions.delete_many({"user_id": user_id})
+    await log_admin_action(actor, "Acesso de usuário atualizado", {"email": target["email"], "ativo": input.active})
+    return {"id": user_id, "active": input.active}
+
+
+@api_router.get("/admin/sessions")
+async def admin_list_sessions(request: Request):
+    await require_chief(request)
+    now = datetime.now(timezone.utc)
+    sessions = await db.admin_sessions.find({"expires_at": {"$gt": now}}, {"_id": 0}).sort("last_seen", -1).to_list(500)
+    user_ids = list({s["user_id"] for s in sessions})
+    users = await db.users.find({"_id": {"$in": [ObjectId(uid) for uid in user_ids if ObjectId.is_valid(uid)]}}, {"name": 1, "email": 1, "role": 1}).to_list(500)
+    by_id = {str(user["_id"]): user for user in users}
+    return [{
+        "id": s["id"], "created_at": s.get("created_at"), "last_seen": s.get("last_seen"),
+        "user_agent": s.get("user_agent", ""), "ip": s.get("ip", ""),
+        "user": {"id": s["user_id"], "name": by_id.get(s["user_id"], {}).get("name", "Usuário"), "email": by_id.get(s["user_id"], {}).get("email", ""), "role": by_id.get(s["user_id"], {}).get("role", "")},
+    } for s in sessions]
+
+
+@api_router.delete("/admin/sessions/{session_id}", status_code=204)
+async def admin_revoke_session(session_id: str, request: Request):
+    actor = await require_chief(request)
+    session = await db.admin_sessions.find_one({"id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Sessão não encontrada")
+    await db.admin_sessions.delete_one({"id": session_id})
+    await log_admin_action(actor, "Sessão encerrada", {"usuário_id": session.get("user_id")})
+    return None
 
 
 @api_router.post("/auth/login")
@@ -1062,8 +1658,12 @@ async def auth_login(
         raise HTTPException(
             status_code=401, detail="E-mail ou senha incorretos"
         )
+    if not user.get("active", True):
+        raise HTTPException(status_code=403, detail="Este acesso está desativado. Fale com o chefe do painel.")
     await db.login_attempts.delete_many({"identifier": identifier})
-    set_auth_cookies(response, str(user["_id"]), email)
+    user_id = str(user["_id"])
+    session_id = await create_admin_session(user_id, request)
+    set_auth_cookies(response, user_id, email, session_id)
     return user_public(user)
 
 
@@ -1078,16 +1678,19 @@ async def auth_refresh(request: Request, response: Response):
     token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=401, detail="Nao autenticado")
-    user = await user_from_payload(decode_token(token, "refresh"))
-    response.set_cookie(
-        "access_token",
-        create_access_token(user["id"], user["email"]),
-        httponly=True,
-        secure=True,
-        samesite="none",
-        max_age=ACCESS_TOKEN_MINUTES * 60,
-        path="/",
-    )
+    payload = decode_token(token, "refresh")
+    user = await user_from_payload(payload)
+    session_id = payload.get("sid")
+    if session_id:
+        session = await db.admin_sessions.find_one({"id": session_id, "user_id": user["id"]})
+        if not session:
+            raise HTTPException(status_code=401, detail="Sessao encerrada")
+        now = datetime.now(timezone.utc)
+        await db.admin_sessions.update_one({"id": session_id}, {"$set": {"last_seen": now.isoformat(), "expires_at": now + timedelta(days=REFRESH_TOKEN_DAYS)}})
+    else:
+        # Migra sessões abertas antes da implementação do controle de dispositivos.
+        session_id = await create_admin_session(user["id"], request)
+    set_auth_cookies(response, user["id"], user["email"], session_id)
     return user
 
 
@@ -1095,6 +1698,11 @@ async def auth_refresh(request: Request, response: Response):
 async def auth_logout(request: Request, response: Response):
     validate_origin(request)
     await get_current_user(request)
+    token = request.cookies.get("access_token", "")
+    if token:
+        session_id = decode_token(token, "access").get("sid")
+        if session_id:
+            await db.admin_sessions.delete_one({"id": session_id})
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
     return {"ok": True}
@@ -1109,7 +1717,7 @@ def _cor_label(arq: str) -> str:
 
 @api_router.get("/admin/stats")
 async def admin_stats(request: Request, periodo: str = "mes"):
-    await get_current_user(request)
+    await require_permission(request, "relatorios")
     now = datetime.now(timezone.utc)
     dias = 7 if periodo == "semana" else 30
     inicio_dia = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1132,6 +1740,7 @@ async def admin_stats(request: Request, periodo: str = "mes"):
     por_grupo = {}
     por_item = {}
     por_status = {s: 0 for s in LEAD_STATUS}
+    por_motivo_perda = {}
     hoje = 0
     for ev in eventos:
         ts = datetime.fromisoformat(ev["timestamp"])
@@ -1144,6 +1753,9 @@ async def admin_stats(request: Request, periodo: str = "mes"):
         por_item[ev["item"]] = por_item.get(ev["item"], 0) + 1
         st = ev.get("status") if ev.get("status") in por_status else "novo"
         por_status[st] += 1
+        if st == "perdido":
+            motivo = ev.get("motivo_perda") or "nao_informado"
+            por_motivo_perda[motivo] = por_motivo_perda.get(motivo, 0) + 1
 
     # Cores mais simuladas no periodo
     simulacoes = {"total": 0, "cores": [], "tipos": []}
@@ -1209,6 +1821,10 @@ async def admin_stats(request: Request, periodo: str = "mes"):
             key=lambda x: -x["total"],
         )[:15],
         "por_status": por_status,
+        "por_motivo_perda": sorted(
+            [{"motivo": k, "total": v} for k, v in por_motivo_perda.items()],
+            key=lambda item: -item["total"],
+        ),
         "simulacoes": simulacoes,
         "ultimos": [_lead_out(e) for e in eventos[:20]],
     }
@@ -1217,11 +1833,13 @@ async def admin_stats(request: Request, periodo: str = "mes"):
 @app.on_event("startup")
 async def seed_admin():
     await db.users.create_index("email", unique=True)
+    await db.admin_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.login_attempts.create_index("identifier")
     try:  # indices de desempenho: nunca devem derrubar a inicializacao
         await db.lead_events.create_index("timestamp")
         await db.lead_events.create_index("id")
         await db.simulation_events.create_index("timestamp")
+        await db.project_metrics.create_index("day")
     except Exception:
         logger.warning("Nao foi possivel criar indices", exc_info=True)
     await db.password_reset_tokens.create_index(
@@ -1237,17 +1855,11 @@ async def seed_admin():
                 "email": admin_email,
                 "password_hash": hash_password(admin_password),
                 "name": "Admin",
-                "role": "admin",
+                "role": "chefe",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
         )
         logger.info("Admin criado: %s", admin_email)
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one(
-            {"email": admin_email},
-            {"$set": {"password_hash": hash_password(admin_password)}},
-        )
-        logger.info("Senha do admin atualizada a partir do .env")
 
 
 # Registra as rotas

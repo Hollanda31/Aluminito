@@ -3,9 +3,10 @@ import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion"
 import { ArrowDown, History } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons";
 import { scrollToId } from "@/lib/scroll";
-import { IMAGES, waOrcamento } from "@/lib/site";
+import { IMAGES, ORCAMENTO_MESSAGE, waMessage } from "@/lib/site";
 import { optimizedImage, optimizedSrcSet } from "@/lib/images";
 import { trackClique } from "@/lib/track";
+import { useSiteConfig } from "@/lib/SiteConfig";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -39,6 +40,7 @@ function RevealLine({ children, delay }) {
 }
 
 export default function Hero() {
+    const { whatsapp } = useSiteConfig();
     const ref = useRef(null);
     const { scrollYProgress } = useScroll({
         target: ref,
@@ -133,7 +135,7 @@ export default function Hero() {
                     <a
                         data-testid="hero-whatsapp-button"
                         onClick={() => trackClique("Geral", "Capa - Fazer Orçamento Gratuito", "hero")}
-                        href={waOrcamento}
+                        href={waMessage(ORCAMENTO_MESSAGE, whatsapp)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center justify-center gap-3 rounded-full bg-azul px-8 py-4 text-base font-semibold text-white shadow-lg shadow-azul/25 transition-all duration-300 hover:bg-azul-dark hover:shadow-azul/40"

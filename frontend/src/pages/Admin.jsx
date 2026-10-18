@@ -5,6 +5,11 @@ import ReviewsManager from "@/components/admin/ReviewsManager";
 import LeadsManager from "@/components/admin/LeadsManager";
 import AvisoEditor from "@/components/admin/AvisoEditor";
 import RetornarHoje from "@/components/admin/RetornarHoje";
+import ProjectsManager from "@/components/admin/ProjectsManager";
+import CatalogManager from "@/components/admin/CatalogManager";
+import SiteSecurityManager from "@/components/admin/SiteSecurityManager";
+import AdminTrash from "@/components/admin/AdminTrash";
+import AdminAudit from "@/components/admin/AdminAudit";
 import { STATUS_LEAD, TIPOS_SIM, baixarCsv } from "@/lib/leads";
 import {
     Bar,
@@ -17,6 +22,7 @@ import {
 } from "recharts";
 import {
     CalendarDays,
+    CircleHelp,
     Download,
     LogOut,
     MousePointerClick,
@@ -33,6 +39,12 @@ const fmtData = (iso) =>
         minute: "2-digit",
     });
 
+const MOTIVOS_PERDA_LABEL = {
+    preco: "Preço", prazo: "Prazo", concorrente: "Outro fornecedor",
+    desistiu: "Desistiu", sem_resposta: "Sem resposta", outro: "Outro motivo",
+    nao_informado: "Não informado",
+};
+
 export default function Admin() {
     const navigate = useNavigate();
     const [periodo, setPeriodo] = useState("mes");
@@ -43,6 +55,8 @@ export default function Admin() {
     const [usuario, setUsuario] = useState(null);
     const [baixando, setBaixando] = useState(false);
     const [aviso, setAviso] = useState("");
+    const [guiaAberto, setGuiaAberto] = useState(false);
+    const [etapaGuia, setEtapaGuia] = useState(0);
 
     const carregar = useCallback(
         async (p) => {
@@ -71,16 +85,12 @@ export default function Admin() {
         withAuthRefresh(() => authApi.get("/api/auth/me"))
             .then((r) => {
                 setUsuario(r.data);
-                carregar("mes");
+                if (r.data.permissions?.includes("relatorios")) carregar("mes");
+                else setSecao(r.data.permissions?.includes("atendimentos") ? "atendimentos" : "configuracoes");
             })
             .catch(() => navigate("/admin/login", { replace: true }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        const t = setInterval(() => carregar(), 30000);
-        return () => clearInterval(t);
-    }, [carregar]);
 
     const mudarPeriodo = (p) => {
         setPeriodo(p);
@@ -129,6 +139,25 @@ export default function Admin() {
         ? Math.max(...stats.por_grupo.map((g) => g.total), 1)
         : 1;
     const maxDia = stats ? Math.max(...stats.por_dia.map((d) => d.total), 0) : 0;
+    const hasPermission = (permission) => usuario?.role === "chefe" || usuario?.role === "admin" || usuario?.permissions?.includes(permission);
+    const tabs = [
+        ...(hasPermission("relatorios") ? [{ id: "visao", label: "Visão geral", guide: "Acompanhe os atendimentos e os indicadores do período, incluindo os principais motivos de perda. Use os filtros de data para comparar resultados e o botão Atualizar para buscar os dados mais recentes." }] : []),
+        ...(hasPermission("atendimentos") ? [{ id: "atendimentos", label: "Atendimentos", guide: "Localize contatos, atualize status e prioridade, registre notas internas e use respostas rápidas no WhatsApp. Ao marcar um contato como perdido, informe o motivo; a visão geral reúne esses motivos." }] : []),
+        ...(hasPermission("avaliacoes") ? [{ id: "avaliacoes", label: "Avaliações", guide: "Revise as avaliações recebidas, escolha quais ficam visíveis no site e organize os destaques. Ocultar preserva o registro no painel." }] : []),
+        ...(hasPermission("aviso") ? [{ id: "aviso", label: "Aviso do site", guide: "Crie avisos para os visitantes, escolha o tipo e o período de exibição. Desativar tira o aviso do ar sem apagar o texto salvo." }] : []),
+        { id: "configuracoes", label: hasPermission("projetos") || hasPermission("catalogo") || hasPermission("contato") || hasPermission("usuarios") ? "Conteúdo e acesso" : "Minha senha", guide: [hasPermission("projetos") && "Obras: edite fotos e vídeos, ordene mídias, acompanhe visualizações e pedidos, e publique depois de revisar o checklist no celular. Fotos grandes são otimizadas no envio.", hasPermission("catalogo") && "Catálogo: oculte cores indisponíveis ou marque as mais pedidas.", (hasPermission("contato") || hasPermission("aviso")) && "Contato: atualize telefone e horário em um só lugar.", hasPermission("usuarios") && "Acessos: gerencie usuários e permissões; o chefe também pode desativar contas e encerrar sessões.", "Senha: altere sua própria senha nesta área."].filter(Boolean).join(" ") },
+        ...(hasPermission("lixeira") ? [{ id: "lixeira", label: "Lixeira", guide: "Recupere obras, mídias e avaliações removidas. Confira o item antes de restaurá-lo para o site." }] : []),
+        ...(hasPermission("auditoria") ? [{ id: "auditoria", label: "Histórico", guide: "Consulte quem fez alterações no painel e quando elas aconteceram." }] : []),
+    ];
+    const etapaAtual = Math.min(etapaGuia, Math.max(tabs.length - 1, 0));
+    const abrirGuia = () => { setEtapaGuia(0); setGuiaAberto(true); };
+
+    useEffect(() => {
+        if (!guiaAberto) return;
+        const fecharComEsc = (event) => { if (event.key === "Escape") setGuiaAberto(false); };
+        window.addEventListener("keydown", fecharComEsc);
+        return () => window.removeEventListener("keydown", fecharComEsc);
+    }, [guiaAberto]);
 
     return (
         <div data-testid="admin-dashboard" className="min-h-screen bg-graphite font-body text-white">
@@ -148,6 +177,14 @@ export default function Admin() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={abrirGuia}
+                            aria-haspopup="dialog"
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
+                        >
+                            <CircleHelp size={14} /> <span className="hidden sm:inline">Como funciona o painel</span><span className="sm:hidden">Ajuda</span>
+                        </button>
                         <Link
                             to="/"
                             data-testid="admin-view-site-link"
@@ -167,13 +204,8 @@ export default function Admin() {
             </header>
 
             <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-                <div className="mb-6 flex gap-2 border-b border-white/10 pb-4">
-                    {[
-                        { id: "visao", label: "Visão geral" },
-                        { id: "atendimentos", label: "Atendimentos" },
-                        { id: "avaliacoes", label: "Avaliações" },
-                        { id: "aviso", label: "Aviso do site" },
-                    ].map((aba) => (
+                <div className="mb-6 flex gap-2 overflow-x-auto border-b border-white/10 pb-4">
+                    {tabs.map((aba) => (
                         <button
                             key={aba.id}
                             data-testid={`admin-tab-${aba.id}`}
@@ -190,10 +222,7 @@ export default function Admin() {
                     ))}
                 </div>
 
-                <div
-                    data-testid="admin-overview-section"
-                    className={secao === "visao" ? "" : "hidden"}
-                >
+                {hasPermission("relatorios") && secao === "visao" && <div data-testid="admin-overview-section">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex gap-2">
                         {[
@@ -231,7 +260,7 @@ export default function Admin() {
                             <RefreshCw size={14} /> Atualizar
                         </button>
                     </div>
-                </div>
+                </div>}
 
                 {erro && (
                     <p className="mt-6 rounded-xl border border-azul/40 bg-azul/10 px-4 py-3 text-sm">
@@ -291,6 +320,12 @@ export default function Admin() {
                                 </button>
                             ))}
                         </div>
+
+                        {stats.por_motivo_perda?.length > 0 && <section data-testid="admin-loss-reasons" className="mt-5 rounded-2xl border border-white/10 bg-graphite2 p-5">
+                            <h2 className="font-display text-lg font-semibold">Motivos de perda</h2>
+                            <p className="mt-1 text-xs text-silver/50">Atendimentos marcados como perdidos no período selecionado.</p>
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{stats.por_motivo_perda.map((item) => <div key={item.motivo} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-3 py-2"><span className="text-sm text-silver/75">{MOTIVOS_PERDA_LABEL[item.motivo] || item.motivo}</span><span className="font-display text-lg font-semibold">{item.total}</span></div>)}</div>
+                        </section>}
 
                         <div data-testid="admin-chart" className="mt-6 rounded-2xl border border-white/10 bg-graphite2 p-6">
                             <h2 className="font-display text-lg font-semibold">
@@ -498,12 +533,28 @@ export default function Admin() {
                         </div>
                     </>
                 ) : null}
-                </div>
+                </div>}
 
-                {secao === "atendimentos" && <LeadsManager />}
-                {secao === "aviso" && <AvisoEditor />}
-                {secao === "avaliacoes" && <ReviewsManager />}
+                {hasPermission("atendimentos") && secao === "atendimentos" && <LeadsManager />}
+                {hasPermission("aviso") && secao === "aviso" && <AvisoEditor />}
+                {hasPermission("avaliacoes") && secao === "avaliacoes" && <ReviewsManager />}
+                {secao === "configuracoes" && <div className="space-y-5">
+                    {hasPermission("projetos") && <ProjectsManager />}
+                    {hasPermission("catalogo") && <CatalogManager />}
+                    <SiteSecurityManager usuario={usuario} />
+                </div>}
+                {hasPermission("lixeira") && secao === "lixeira" && <AdminTrash />}
+                {hasPermission("auditoria") && secao === "auditoria" && <AdminAudit />}
             </main>
+            {guiaAberto && tabs.length > 0 && <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="admin-guide-title" aria-describedby="admin-guide-description">
+                <section className="w-full max-w-xl rounded-2xl border border-white/10 bg-graphite p-6 shadow-2xl sm:p-8">
+                    <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-azul">Guia do painel · parte {etapaAtual + 1} de {tabs.length}</p><h2 id="admin-guide-title" className="mt-2 font-display text-xl font-semibold">{tabs[etapaAtual]?.label}</h2></div><button type="button" onClick={() => setGuiaAberto(false)} className="rounded-full border border-white/20 px-4 py-2 text-sm">Fechar</button></div>
+                    <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-azul transition-all" style={{ width: `${((etapaAtual + 1) / tabs.length) * 100}%` }} /></div>
+                    <p id="admin-guide-description" className="mt-5 text-sm leading-relaxed text-silver/75">{tabs[etapaAtual]?.guide}</p>
+                    <p className="mt-4 text-xs text-silver/45">As etapas seguem as seções disponíveis para seu cargo e se atualizam conforme as permissões e áreas do painel.</p>
+                    <div className="mt-7 flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><button type="button" onClick={() => setEtapaGuia((step) => Math.max(0, step - 1))} disabled={etapaAtual === 0} className="rounded-full border border-white/20 px-4 py-2 text-sm disabled:opacity-35">Anterior</button><button type="button" onClick={() => { setSecao(tabs[etapaAtual].id); setGuiaAberto(false); }} className="rounded-full border border-white/20 px-4 py-2 text-sm">Abrir esta área</button></div><button type="button" onClick={() => etapaAtual < tabs.length - 1 ? setEtapaGuia(etapaAtual + 1) : setGuiaAberto(false)} className="rounded-full bg-azul px-5 py-2 text-sm font-semibold">{etapaAtual < tabs.length - 1 ? "Próxima etapa" : "Concluir"}</button></div>
+                </section>
+            </div>}
         </div>
     );
 }

@@ -6,10 +6,11 @@ import { WhatsAppIcon } from "@/components/icons";
 import { waMessage } from "@/lib/site";
 import { trackClique } from "@/lib/track";
 import { startScroll, stopScroll } from "@/lib/scroll";
+import { useSiteConfig } from "@/lib/SiteConfig";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
 
-const PINTURA = [
+export const PINTURA = [
     { nome: "Branco", codigo: "LI", arq: "BRANCO-LI-BR.jpg" },
     { nome: "Branco", codigo: "60312 MT", arq: "BRANCO-60312-MT-FO.jpg" },
     { nome: "Branco", codigo: "60409 PE", arq: "BRANCO-60409-PE-FO.jpg" },
@@ -52,7 +53,7 @@ const PINTURA = [
     { nome: "Violeta Ametista", codigo: "35014 ME", arq: "VIOLETA-AMETISTA-35014-ME-FO.png" },
 ];
 
-const MADEIRA = [
+export const MADEIRA = [
     { nome: "Cambará", codigo: "COD.01", arq: "COD.01-CAMBARA.webp" },
     { nome: "Cerejeira", codigo: "COD.02", arq: "COD.02-CEREJEIRA.webp" },
     { nome: "Corten Arch", codigo: "COD.03", arq: "COD.03-CORTEN-ARCH.webp" },
@@ -75,7 +76,7 @@ const MADEIRA = [
     { nome: "Pátina", codigo: "COD.20", arq: "COD.20-PATINA.webp" },
 ];
 
-const TODAS = [...PINTURA, ...MADEIRA];
+export const TODAS = [...PINTURA, ...MADEIRA];
 
 const TIPOS = [
     { id: "porta", nome: "Porta", desc: "Porta de alumínio com vidro", icon: DoorOpen },
@@ -100,6 +101,7 @@ const TABS = [
 ];
 
 export default function CatalogoCores() {
+    const { whatsapp } = useSiteConfig();
     const [tab, setTab] = useState("madeira");
     const [cor, setCor] = useState(null);
     const [step, setStep] = useState("cor");
@@ -115,8 +117,23 @@ export default function CatalogoCores() {
     const reqRef = useRef(0);
     // Chaves "tipo|arquivo" das simulações que o servidor já tem prontas.
     const [prontas, setProntas] = useState(() => new Set());
+    const [coresConfig, setCoresConfig] = useState({});
 
-    const lista = tab === "pintura" ? PINTURA : MADEIRA;
+    useEffect(() => {
+        fetch(`${BACKEND || ""}/api/catalogo/cores`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((data) => {
+                if (data?.items) setCoresConfig(Object.fromEntries(data.items.map((c) => [c.arq, c])));
+            })
+            .catch(() => {});
+    }, []);
+
+    const coresVisiveis = (cores) => cores
+        .filter((c) => coresConfig[c.arq]?.ativo !== false)
+        .map((c) => ({ ...c, maisPedida: !!coresConfig[c.arq]?.mais_pedida }));
+
+    const lista = coresVisiveis(tab === "pintura" ? PINTURA : MADEIRA);
+    const todasVisiveis = coresVisiveis(TODAS);
 
     useEffect(() => {
         if (!loading) return;
@@ -266,7 +283,7 @@ export default function CatalogoCores() {
                         >
                             {t.label}
                             <span className="ml-2 text-xs opacity-60">
-                                {t.id === "pintura" ? PINTURA.length : MADEIRA.length}
+                                {coresVisiveis(t.id === "pintura" ? PINTURA : MADEIRA).length}
                             </span>
                         </button>
                     ))}
@@ -299,6 +316,7 @@ export default function CatalogoCores() {
                             </div>
                             <div className="p-4">
                                 <p className="font-display text-sm font-semibold text-graphite">{c.nome}</p>
+                                {c.maisPedida && <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Mais pedida</span>}
                                 <p className="mt-0.5 text-xs text-slate-500">{c.codigo}</p>
                             </div>
                         </button>
@@ -370,6 +388,7 @@ export default function CatalogoCores() {
                                             onClick={() => trackClique(cor.arq.startsWith("COD.") ? "Efeito Madeira" : "Pintura Eletrostática", `${cor.nome} (${cor.codigo})`, "catalogo")}
                                             href={waMessage(
                                                 `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
+                                                whatsapp,
                                             )}
                                             target="_blank"
                                             rel="noreferrer"
@@ -469,7 +488,7 @@ export default function CatalogoCores() {
                                             Trocar cor
                                         </p>
                                         <div className="mt-3 flex gap-2 overflow-x-auto pb-2" data-testid="sim-color-rail">
-                                            {TODAS.map((c) => (
+                                            {todasVisiveis.map((c) => (
                                                 <button
                                                     key={c.arq}
                                                     data-testid={`sim-cor-${slug(c.nome)}-${slug(c.codigo)}`}
@@ -510,6 +529,7 @@ export default function CatalogoCores() {
                                                 onClick={() => trackClique("Simulador", `${tipoNome} - ${cor.nome} (${cor.codigo})`, "simulador")}
                                                 href={waMessage(
                                                     `Olá! Fiz uma simulação no site: ${tipoNome} na cor ${cor.nome} (${cor.codigo}). Gostaria de um orçamento.`,
+                                                    whatsapp,
                                                 )}
                                                 target="_blank"
                                                 rel="noreferrer"
