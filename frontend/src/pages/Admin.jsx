@@ -23,6 +23,17 @@ import {
 import {
     CalendarDays,
     CircleHelp,
+    Home,
+    Users,
+    Star,
+    Megaphone,
+    Settings2,
+    Sun,
+    Moon,
+    Rows3,
+    Trash2,
+    History,
+    Images,
     Download,
     LogOut,
     MousePointerClick,
@@ -57,6 +68,8 @@ export default function Admin() {
     const [aviso, setAviso] = useState("");
     const [guiaAberto, setGuiaAberto] = useState(false);
     const [etapaGuia, setEtapaGuia] = useState(0);
+    const [tema, setTema] = useState("claro");
+    const [densidade, setDensidade] = useState("confortavel");
 
     const carregar = useCallback(
         async (p) => {
@@ -85,6 +98,11 @@ export default function Admin() {
         withAuthRefresh(() => authApi.get("/api/auth/me"))
             .then((r) => {
                 setUsuario(r.data);
+                const chaveUsuario = encodeURIComponent(r.data.email || "padrao");
+                try {
+                    setTema(localStorage.getItem(`aluminito.admin.tema.${chaveUsuario}`) || "claro");
+                    setDensidade(localStorage.getItem(`aluminito.admin.densidade.${chaveUsuario}`) || "confortavel");
+                } catch (e) {}
                 if (r.data.permissions?.includes("relatorios")) carregar("mes");
                 else setSecao(r.data.permissions?.includes("atendimentos") ? "atendimentos" : "configuracoes");
             })
@@ -135,6 +153,13 @@ export default function Admin() {
         navigate("/admin/login", { replace: true });
     };
 
+    const salvarPreferencia = (tipo, valor) => {
+        const chaveUsuario = encodeURIComponent(usuario?.email || "padrao");
+        if (tipo === "tema") setTema(valor);
+        if (tipo === "densidade") setDensidade(valor);
+        try { localStorage.setItem(`aluminito.admin.${tipo}.${chaveUsuario}`, valor); } catch (e) {}
+    };
+
     const maxGrupo = stats
         ? Math.max(...stats.por_grupo.map((g) => g.total), 1)
         : 1;
@@ -143,14 +168,19 @@ export default function Admin() {
     const tabs = [
         ...(hasPermission("relatorios") ? [{ id: "visao", label: "Visão geral", guide: "Acompanhe os atendimentos e os indicadores do período, incluindo os principais motivos de perda. Use os filtros de data para comparar resultados e o botão Atualizar para buscar os dados mais recentes." }] : []),
         ...(hasPermission("atendimentos") ? [{ id: "atendimentos", label: "Atendimentos", guide: "Localize contatos, atualize status e prioridade, registre notas internas e use respostas rápidas no WhatsApp. Ao marcar um contato como perdido, informe o motivo; a visão geral reúne esses motivos." }] : []),
+        ...(hasPermission("projetos") ? [{ id: "projetos", label: "Obras e galeria", guide: "Edite as obras, envie e organize fotos e vídeos, confira a prévia e publique a galeria do site. O checklist ajuda a revisar o conteúdo antes de publicar." }] : []),
+        ...(hasPermission("catalogo") ? [{ id: "catalogo", label: "Catálogo", guide: "Gerencie as cores do catálogo, oculte as indisponíveis e marque as mais pedidas. Revise a prévia antes de publicar as alterações." }] : []),
         ...(hasPermission("avaliacoes") ? [{ id: "avaliacoes", label: "Avaliações", guide: "Revise as avaliações recebidas, escolha quais ficam visíveis no site e organize os destaques. Ocultar preserva o registro no painel." }] : []),
         ...(hasPermission("aviso") ? [{ id: "aviso", label: "Aviso do site", guide: "Crie avisos para os visitantes, escolha o tipo e o período de exibição. Desativar tira o aviso do ar sem apagar o texto salvo." }] : []),
-        { id: "configuracoes", label: hasPermission("projetos") || hasPermission("catalogo") || hasPermission("contato") || hasPermission("usuarios") ? "Conteúdo e acesso" : "Minha senha", guide: [hasPermission("projetos") && "Obras: edite fotos e vídeos, ordene mídias, acompanhe visualizações e pedidos, e publique depois de revisar o checklist no celular. Fotos grandes são otimizadas no envio.", hasPermission("catalogo") && "Catálogo: oculte cores indisponíveis ou marque as mais pedidas.", (hasPermission("contato") || hasPermission("aviso")) && "Contato: atualize telefone e horário em um só lugar.", hasPermission("usuarios") && "Acessos: gerencie usuários e permissões; o chefe também pode desativar contas e encerrar sessões.", "Senha: altere sua própria senha nesta área."].filter(Boolean).join(" ") },
+        { id: "configuracoes", label: hasPermission("contato") || hasPermission("usuarios") ? "Gerência" : "Minha senha", guide: [(hasPermission("contato") || hasPermission("aviso")) && "Contato: atualize telefone e horário em um só lugar.", hasPermission("usuarios") && "Acessos: gerencie usuários e permissões; o chefe também pode desativar contas e encerrar sessões.", "Senha: altere sua própria senha nesta área."].filter(Boolean).join(" ") },
+        { id: "preferencias", label: "Configurações do painel", guide: "Personalize a aparência do painel com tema claro ou escuro e escolha uma visualização confortável ou compacta. As preferências ficam salvas para sua conta neste navegador." },
         ...(hasPermission("lixeira") ? [{ id: "lixeira", label: "Lixeira", guide: "Recupere obras, mídias e avaliações removidas. Confira o item antes de restaurá-lo para o site." }] : []),
         ...(hasPermission("auditoria") ? [{ id: "auditoria", label: "Histórico", guide: "Consulte quem fez alterações no painel e quando elas aconteceram." }] : []),
     ];
     const etapaAtual = Math.min(etapaGuia, Math.max(tabs.length - 1, 0));
     const abrirGuia = () => { setEtapaGuia(0); setGuiaAberto(true); };
+    const tabIcons = { visao: Home, atendimentos: Users, projetos: Images, catalogo: Palette, avaliacoes: Star, aviso: Megaphone, configuracoes: Settings2, lixeira: Trash2, auditoria: History, preferencias: Settings2 };
+    const activeTab = tabs.find((aba) => aba.id === secao) || tabs[0];
 
     useEffect(() => {
         if (!guiaAberto) return;
@@ -160,20 +190,30 @@ export default function Admin() {
     }, [guiaAberto]);
 
     return (
-        <div data-testid="admin-dashboard" className="min-h-screen bg-graphite font-body text-white">
+        <div data-testid="admin-dashboard" data-theme={tema} data-density={densidade} className="admin-theme flex min-h-screen bg-graphite font-body text-white">
+            <aside className="admin-sidebar hidden w-60 shrink-0 border-r border-white/10 bg-graphite2 px-4 py-5 md:flex md:flex-col">
+                <div className="mb-8 flex items-center gap-3 px-2">
+                    <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl bg-white p-1 shadow-sm">
+                        <img src="/logo-aluminito.png" alt="Aluminito" className="h-full w-full object-cover" />
+                    </span>
+                    <div><p className="font-display text-sm font-bold tracking-wide">Aluminito</p><p className="text-[11px] text-silver/50">Painel administrativo</p></div>
+                </div>
+                <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-silver/45">Menu principal</p>
+                <nav className="space-y-1" aria-label="Navegação do painel">
+                    {tabs.map((aba) => {
+                        const Icon = tabIcons[aba.id] || Settings2;
+                        return <button key={aba.id} data-testid={`admin-tab-${aba.id}`} onClick={() => setSecao(aba.id)} aria-pressed={secao === aba.id} className={`admin-nav-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${secao === aba.id ? "border-azul bg-azul text-white" : "border-transparent text-silver hover:border-white/10 hover:bg-white/5 hover:text-white"}`}><Icon size={17} strokeWidth={1.8} /><span>{aba.label}</span></button>;
+                    })}
+                </nav>
+                <div className="mt-auto rounded-xl border border-white/10 bg-white/5 p-3"><p className="truncate text-xs font-semibold">{usuario?.email || "Aluminito Esquadrias"}</p><p className="mt-1 text-[11px] capitalize text-silver/55">{usuario?.role || "Usuário"}</p></div>
+            </aside>
+            <div className="min-w-0 flex-1">
             <header className="sticky top-0 z-40 border-b border-white/10 bg-graphite/90 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+                <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-3.5 sm:px-8">
                     <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl bg-white p-1">
-                            <img src="/logo-aluminito.png" alt="Aluminito" className="h-full w-full object-cover" />
-                        </span>
                         <div>
-                            <p className="font-display text-sm font-bold tracking-wide">
-                                Painel de Atendimentos
-                            </p>
-                            <p className="text-[11px] text-silver/50">
-                                {usuario?.email || "Aluminito Esquadrias"}
-                            </p>
+                            <p className="font-display text-[10px] font-semibold uppercase tracking-[0.16em] text-silver/50">Aluminito · Administração</p>
+                            <p className="mt-0.5 font-display text-base font-bold">{activeTab?.label || "Painel"}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -181,21 +221,21 @@ export default function Admin() {
                             type="button"
                             onClick={abrirGuia}
                             aria-haspopup="dialog"
-                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
                         >
                             <CircleHelp size={14} /> <span className="hidden sm:inline">Como funciona o painel</span><span className="sm:hidden">Ajuda</span>
                         </button>
                         <Link
                             to="/"
                             data-testid="admin-view-site-link"
-                            className="hidden rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:text-white sm:block"
+                            className="hidden rounded-xl border border-white/15 px-3 py-2 text-xs font-medium text-silver transition-colors hover:text-white sm:block"
                         >
                             Ver site
                         </Link>
                         <button
                             data-testid="admin-logout-button"
                             onClick={sair}
-                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-medium text-silver transition-colors hover:border-azul hover:text-white"
                         >
                             <LogOut size={14} /> Sair
                         </button>
@@ -203,8 +243,8 @@ export default function Admin() {
                 </div>
             </header>
 
-            <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-                <div className="mb-6 flex gap-2 overflow-x-auto border-b border-white/10 pb-4">
+            <main className="mx-auto max-w-[1500px] px-5 py-6 sm:px-8">
+                <div className="admin-mobile-nav mb-5 flex gap-2 overflow-x-auto pb-2 md:hidden">
                     {tabs.map((aba) => (
                         <button
                             key={aba.id}
@@ -364,7 +404,7 @@ export default function Admin() {
                                             }}
                                             labelStyle={{ color: "#fff" }}
                                         />
-                                        <Bar dataKey="total" fill="#FF0000" radius={[6, 6, 0, 0]} name="Atendimentos" />
+                                        <Bar dataKey="total" fill="#DC2626" radius={[6, 6, 0, 0]} name="Atendimentos" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
@@ -536,13 +576,21 @@ export default function Admin() {
                 </div>}
 
                 {hasPermission("atendimentos") && secao === "atendimentos" && <LeadsManager />}
+                {hasPermission("projetos") && secao === "projetos" && <ProjectsManager />}
+                {hasPermission("catalogo") && secao === "catalogo" && <CatalogManager />}
                 {hasPermission("aviso") && secao === "aviso" && <AvisoEditor />}
                 {hasPermission("avaliacoes") && secao === "avaliacoes" && <ReviewsManager />}
                 {secao === "configuracoes" && <div className="space-y-5">
-                    {hasPermission("projetos") && <ProjectsManager />}
-                    {hasPermission("catalogo") && <CatalogManager />}
                     <SiteSecurityManager usuario={usuario} />
                 </div>}
+                {secao === "preferencias" && <section data-testid="admin-preferencias" className="rounded-2xl border border-white/10 bg-graphite2 p-5 sm:p-7">
+                    <div className="mb-6"><h2 className="font-display text-lg font-semibold">Personalize seu painel</h2><p className="mt-1 text-sm text-silver/60">Essas opções são salvas para seu usuário neste navegador.</p></div>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                        <div className="rounded-xl border border-white/10 p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-azul/10 text-azul"><Sun size={19} /></span><div><h3 className="text-sm font-semibold">Tema</h3><p className="mt-1 text-xs text-silver/60">Escolha a aparência do painel administrativo.</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => salvarPreferencia("tema", "claro")} aria-pressed={tema === "claro"} className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${tema === "claro" ? "border-azul bg-azul text-white" : "border-white/15 text-silver"}`}><Sun size={16} /> Claro</button><button type="button" onClick={() => salvarPreferencia("tema", "escuro")} aria-pressed={tema === "escuro"} className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${tema === "escuro" ? "border-azul bg-azul text-white" : "border-white/15 text-silver"}`}><Moon size={16} /> Escuro</button></div></div>
+                        <div className="rounded-xl border border-white/10 p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-azul/10 text-azul"><Rows3 size={19} /></span><div><h3 className="text-sm font-semibold">Espaçamento</h3><p className="mt-1 text-xs text-silver/60">Compacto mostra mais conteúdo na tela.</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => salvarPreferencia("densidade", "confortavel")} aria-pressed={densidade === "confortavel"} className={`rounded-xl border px-4 py-3 text-sm font-medium ${densidade === "confortavel" ? "border-azul bg-azul text-white" : "border-white/15 text-silver"}`}>Confortável</button><button type="button" onClick={() => salvarPreferencia("densidade", "compacta")} aria-pressed={densidade === "compacta"} className={`rounded-xl border px-4 py-3 text-sm font-medium ${densidade === "compacta" ? "border-azul bg-azul text-white" : "border-white/15 text-silver"}`}>Compacta</button></div></div>
+                    </div>
+                    <p role="status" className="mt-5 text-xs text-silver/55">As alterações são aplicadas imediatamente.</p>
+                </section>}
                 {hasPermission("lixeira") && secao === "lixeira" && <AdminTrash />}
                 {hasPermission("auditoria") && secao === "auditoria" && <AdminAudit />}
             </main>
@@ -555,6 +603,7 @@ export default function Admin() {
                     <div className="mt-7 flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><button type="button" onClick={() => setEtapaGuia((step) => Math.max(0, step - 1))} disabled={etapaAtual === 0} className="rounded-full border border-white/20 px-4 py-2 text-sm disabled:opacity-35">Anterior</button><button type="button" onClick={() => { setSecao(tabs[etapaAtual].id); setGuiaAberto(false); }} className="rounded-full border border-white/20 px-4 py-2 text-sm">Abrir esta área</button></div><button type="button" onClick={() => etapaAtual < tabs.length - 1 ? setEtapaGuia(etapaAtual + 1) : setGuiaAberto(false)} className="rounded-full bg-azul px-5 py-2 text-sm font-semibold">{etapaAtual < tabs.length - 1 ? "Próxima etapa" : "Concluir"}</button></div>
                 </section>
             </div>}
+            </div>
         </div>
     );
 }

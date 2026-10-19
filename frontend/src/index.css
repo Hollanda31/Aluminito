@@ -84,3 +84,134 @@ textarea {
 .pulse-ring {
     animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Admin-only dashboard theme. Public pages keep the original dark palette. */
+.admin-theme {
+    background: #f4f6fa !important;
+    color: #182230 !important;
+}
+.admin-theme .admin-sidebar,
+.admin-theme header {
+    background: #ffffff !important;
+    border-color: #e5eaf1 !important;
+}
+.admin-theme .admin-sidebar {
+    box-shadow: 1px 0 0 rgba(15, 23, 42, 0.02);
+}
+.admin-theme .bg-graphite2,
+.admin-theme main .bg-graphite {
+    background: #ffffff !important;
+}
+.admin-theme .bg-graphite\/90 {
+    background: rgba(255, 255, 255, 0.94) !important;
+}
+.admin-theme .text-white {
+    color: #1e293b !important;
+}
+.admin-theme [class*="text-silver"] {
+    color: #64748b !important;
+}
+.admin-theme [class*="border-white"] {
+    border-color: #e2e8f0 !important;
+}
+.admin-theme [class*="bg-white/5"] {
+    background: #f8fafc !important;
+}
+.admin-theme [class*="bg-white/10"] {
+    background: #eef2f7 !important;
+}
+.admin-theme .bg-azul,
+.admin-theme .hover\:bg-azul-dark:hover {
+    background-color: #dc2626 !important;
+}
+.admin-theme .text-azul {
+    color: #dc2626 !important;
+}
+.admin-theme .border-azul {
+    border-color: #dc2626 !important;
+}
+.admin-theme .bg-azul\/10 {
+    background-color: #fef2f2 !important;
+}
+.admin-theme .admin-nav-item[aria-pressed="true"],
+.admin-theme .bg-azul.text-white,
+.admin-theme .fixed .text-white {
+    color: #ffffff !important;
+}
+.admin-theme .fixed {
+    color: #ffffff;
+}
+.admin-theme .fixed .bg-graphite {
+    background: #111827 !important;
+}
+.admin-theme .fixed [class*="border-white"] {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+}
+.admin-theme .admin-nav-item:hover:not([aria-pressed="true"]) {
+    background-color: #f1f5f9 !important;
+}
+.admin-theme main > div > [data-testid^="admin-stat-"] {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+@media (max-width: 767px) {
+    .admin-theme .admin-mobile-nav {
+        scrollbar-width: thin;
+    }
+}
+
+/* Optional dark appearance, limited to the admin dashboard. */
+.admin-theme[data-theme="escuro"] {
+    background: #0b1120 !important;
+    color: #e2e8f0 !important;
+}
+.admin-theme[data-theme="escuro"] .admin-sidebar,
+.admin-theme[data-theme="escuro"] header {
+    background: #111827 !important;
+    border-color: #263244 !important;
+}
+.admin-theme[data-theme="escuro"] .bg-graphite2,
+.admin-theme[data-theme="escuro"] main .bg-graphite {
+    background: #111827 !important;
+}
+.admin-theme[data-theme="escuro"] .bg-graphite\/90 {
+    background: rgba(17, 24, 39, 0.94) !important;
+}
+.admin-theme[data-theme="escuro"] .text-white {
+    color: #f1f5f9 !important;
+}
+.admin-theme[data-theme="escuro"] [class*="text-silver"] {
+    color: #94a3b8 !important;
+}
+.admin-theme[data-theme="escuro"] [class*="border-white"] {
+    border-color: #334155 !important;
+}
+.admin-theme[data-theme="escuro"] [class*="bg-white/5"] {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+.admin-theme[data-theme="escuro"] [class*="bg-white/10"] {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+.admin-theme[data-theme="escuro"] .bg-azul,
+.admin-theme[data-theme="escuro"] .hover\:bg-azul-dark:hover {
+    background-color: #dc2626 !important;
+}
+.admin-theme[data-theme="escuro"] .text-azul {
+    color: #f87171 !important;
+}
+.admin-theme[data-theme="escuro"] .border-azul {
+    border-color: #ef4444 !important;
+}
+.admin-theme[data-theme="escuro"] .bg-azul\/10 {
+    background-color: rgba(220, 38, 38, 0.18) !important;
+}
+.admin-theme[data-theme="escuro"] .admin-nav-item[aria-pressed="true"],
+.admin-theme[data-theme="escuro"] .bg-azul.text-white,
+.admin-theme[data-theme="escuro"] .fixed .text-white {
+    color: #ffffff !important;
+}
+.admin-theme[data-density="compact"] main [class*="rounded-2xl"][class*="p-6"] {
+    padding: 1rem !important;
+}
+.admin-theme[data-density="compact"] main [class*="rounded-2xl"][class*="p-5"] {
+    padding: 0.875rem !important;
+}
