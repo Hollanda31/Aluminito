@@ -296,3 +296,51 @@ def cleanup_test_data():
         db.login_attempts.delete_many({"identifier": {"$regex": "bruteforce_test|invalid_login_test"}})
     except Exception as e:
         print(f"cleanup warn: {e}")
+
+
+# --- /api/manutencao (modo manutenção) ---
+def test_manutencao_publico_nao_exige_login(client):
+    r = client.get(f"{API}/manutencao")
+    assert r.status_code == 200
+    assert "ativo" in r.json()
+    cache_control = r.headers.get("Cache-Control", "")
+    assert "no-store" in cache_control
+    assert "no-cache" in cache_control
+
+
+def test_manutencao_admin_exige_login(client):
+    assert client.get(f"{API}/admin/manutencao").status_code == 401
+    assert client.put(f"{API}/admin/manutencao", json={"ativo": True}).status_code == 401
+
+
+def test_manutencao_ligar_e_desligar(auth_client):
+    original = auth_client.get(f"{API}/admin/manutencao").json()
+    try:
+        r = auth_client.put(
+            f"{API}/admin/manutencao",
+            json={"ativo": True, "titulo": "TEST manutenção", "mensagem": "TEST volta já", "mostrar_whatsapp": False},
+        )
+        assert r.status_code == 200
+        pub = auth_client.get(f"{API}/manutencao").json()
+        assert pub == {"ativo": True, "titulo": "TEST manutenção", "mensagem": "TEST volta já", "mostrar_whatsapp": False}
+
+        r = auth_client.put(f"{API}/admin/manutencao", json={**r.json(), "ativo": False})
+        assert r.status_code == 200
+        assert auth_client.get(f"{API}/manutencao").json() == {"ativo": False}
+    finally:
+        auth_client.put(f"{API}/admin/manutencao", json=original)
+
+
+# --- simulador de cor de vidro (pele de vidro) ---
+def test_simular_disponiveis_vidro(client):
+    r = client.get(f"{API}/simular/disponiveis", params={"tipo": "vidro"})
+    assert r.status_code == 200
+    assert isinstance(r.json()["cores"], list)
+
+
+def test_simular_vidro_inexistente(client):
+    r = client.post(
+        f"{API}/simular",
+        json={"tipo": "vidro", "cor_arq": "vidro-que-nao-existe.jpg", "cor_nome": "TEST", "formato": "url"},
+    )
+    assert r.status_code == 404

@@ -28,7 +28,7 @@ export default function SiteSecurityManager({ usuario }) {
         if (canManageUsers) loadUsers();
         if (canManageSessions) loadSessions();
         if (canManagePermissions) withAuthRefresh(() => authApi.get("/api/admin/role-permissions")).then(({ data }) => setRolePermissions(data.roles)).catch(() => {});
-    }, [usuario?.role]);
+    }, [usuario?.role, canManageUsers, canManageSessions, canManagePermissions]);
     const loadUsers = () => withAuthRefresh(() => authApi.get("/api/admin/users")).then(({ data }) => setUsers(data)).catch(() => {});
     const loadSessions = () => withAuthRefresh(() => authApi.get("/api/admin/sessions")).then(({ data }) => setSessions(data)).catch(() => setMsg("Não foi possível carregar as sessões."));
     const saveConfig = async (e) => {

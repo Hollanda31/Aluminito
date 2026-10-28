@@ -7,6 +7,7 @@ import { waMessage } from "@/lib/site";
 import { trackClique } from "@/lib/track";
 import { startScroll, stopScroll } from "@/lib/scroll";
 import { useSiteConfig } from "@/lib/SiteConfig";
+import { ESPESSURAS_VIDRO, VIDROS } from "@/lib/vidros";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
 
@@ -98,7 +99,15 @@ const slug = (s) =>
 const TABS = [
     { id: "madeira", label: "Efeito Madeira" },
     { id: "pintura", label: "Pintura Eletrostática" },
+    { id: "vidro", label: "Vidros" },
 ];
+
+// vidros ganham a marca "vidro" para o simulador tratar diferente do alumínio
+const VIDROS_UI = VIDROS.map((v) => ({ ...v, vidro: true }));
+const LISTAS = { pintura: PINTURA, madeira: MADEIRA, vidro: VIDROS_UI };
+const imgCor = (c) => (c.vidro ? `/vidros/${c.arq}` : `/cores/${c.arq}`);
+const categoriaCor = (c) =>
+    c.vidro ? "Vidros" : c.arq.startsWith("COD.") ? "Efeito Madeira" : "Pintura Eletrostática";
 
 export default function CatalogoCores() {
     const { whatsapp } = useSiteConfig();
@@ -132,8 +141,9 @@ export default function CatalogoCores() {
         .filter((c) => coresConfig[c.arq]?.ativo !== false)
         .map((c) => ({ ...c, maisPedida: !!coresConfig[c.arq]?.mais_pedida }));
 
-    const lista = coresVisiveis(tab === "pintura" ? PINTURA : MADEIRA);
+    const lista = coresVisiveis(LISTAS[tab]);
     const todasVisiveis = coresVisiveis(TODAS);
+    const vidrosVisiveis = coresVisiveis(VIDROS_UI);
 
     useEffect(() => {
         if (!loading) return;
@@ -215,7 +225,7 @@ export default function CatalogoCores() {
                     tipo: tipoSel,
                     cor_arq: corSel.arq,
                     cor_nome: corSel.nome,
-                    acabamento: corSel.arq.startsWith("COD.") ? "madeira" : "pintura",
+                    acabamento: corSel.vidro ? "vidro" : corSel.arq.startsWith("COD.") ? "madeira" : "pintura",
                     formato: "url",
                 }),
             });
@@ -249,7 +259,7 @@ export default function CatalogoCores() {
         gerar(c, tipo);
     };
 
-    const tipoNome = TIPOS.find((t) => t.id === tipo)?.nome || "";
+    const tipoNome = tipo === "vidro" ? "Pele de vidro" : TIPOS.find((t) => t.id === tipo)?.nome || "";
 
     return (
         <section id="cores" data-testid="catalogo-cores-section" className="bg-mist py-24 sm:py-32">
@@ -265,7 +275,7 @@ export default function CatalogoCores() {
                     </div>
                     <p className="max-w-sm text-sm leading-relaxed text-slate-600 sm:text-base">
                         Toque em uma cor para ampliar e simular como ela fica
-                        em portas, janelas, persianas e outras esquadrias.
+                        em portas, janelas, persianas, outras esquadrias e vidros.
                     </p>
                 </Reveal>
 
@@ -283,7 +293,7 @@ export default function CatalogoCores() {
                         >
                             {t.label}
                             <span className="ml-2 text-xs opacity-60">
-                                {coresVisiveis(t.id === "pintura" ? PINTURA : MADEIRA).length}
+                                {coresVisiveis(LISTAS[t.id]).length}
                             </span>
                         </button>
                     ))}
@@ -305,8 +315,8 @@ export default function CatalogoCores() {
                         >
                             <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                                 <img
-                                    src={`/cores/${c.arq}`}
-                                    alt={`Perfil de alumínio na cor ${c.nome} ${c.codigo}`}
+                                    src={imgCor(c)}
+                                    alt={c.vidro ? `Vidro ${c.nome}` : `Perfil de alumínio na cor ${c.nome} ${c.codigo}`}
                                     loading="lazy"
                                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
@@ -324,9 +334,10 @@ export default function CatalogoCores() {
                 </div>
 
                 <Reveal className="mt-12 flex flex-col items-center gap-4 text-center">
-                    <p className="text-xs text-slate-500">
-                        Amostras do catálogo Metaperfil · Simulações geradas
-                        por IA são ilustrativas.
+                    <p className="max-w-2xl text-xs text-slate-500">
+                        {tab === "vidro"
+                            ? "Cores de vidro de referência: linha Habitat by Cebrace. A tonalidade real varia com a luz, a espessura e a aplicação, e as amostras são ilustrativas. Consulte a disponibilidade · Simulações geradas por IA são ilustrativas."
+                            : "Amostras do catálogo Metaperfil · Simulações geradas por IA são ilustrativas."}
                     </p>
                 </Reveal>
             </div>
@@ -362,7 +373,7 @@ export default function CatalogoCores() {
                                 <div>
                                     <div className="h-[32vh] max-h-[280px] min-h-[180px] w-full overflow-hidden bg-slate-100">
                                         <img
-                                            src={`/cores/${cor.arq}`}
+                                            src={imgCor(cor)}
                                             alt={`Cor ${cor.nome}`}
                                             className="h-full w-full object-cover"
                                         />
@@ -375,9 +386,27 @@ export default function CatalogoCores() {
                                             {cor.nome}
                                         </h3>
                                         <p className="mt-1 text-sm text-slate-500">{cor.codigo}</p>
+                                        {cor.vidro && (
+                                            <div data-testid="vidro-info" className="mt-4 rounded-xl bg-slate-50 p-4">
+                                                <p className="text-sm leading-relaxed text-slate-600">{cor.descricao}</p>
+                                                <dl className="mt-3 grid grid-cols-2 gap-3 text-center">
+                                                    <div className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+                                                        <dt className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Proteção de calor</dt>
+                                                        <dd className="mt-1 font-display text-lg font-bold text-graphite">{cor.calor}%</dd>
+                                                    </div>
+                                                    <div className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+                                                        <dt className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Proteção UV</dt>
+                                                        <dd className="mt-1 font-display text-lg font-bold text-graphite">{cor.uv}%</dd>
+                                                    </div>
+                                                </dl>
+                                                <p className="mt-3 text-xs text-slate-500">
+                                                    Espessuras de referência: {ESPESSURAS_VIDRO}. Valores informados pela Cebrace (linha Habitat); consulte a disponibilidade.
+                                                </p>
+                                            </div>
+                                        )}
                                         <button
                                             data-testid="cor-btn-simular"
-                                            onClick={() => setStep("tipo")}
+                                            onClick={() => (cor.vidro ? escolherTipo("vidro") : setStep("tipo"))}
                                             className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl bg-azul px-6 py-4 font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
                                         >
                                             <Wand2 size={18} />
@@ -385,9 +414,11 @@ export default function CatalogoCores() {
                                         </button>
                                         <a
                                             data-testid="cor-btn-whatsapp"
-                                            onClick={() => trackClique(cor.arq.startsWith("COD.") ? "Efeito Madeira" : "Pintura Eletrostática", `${cor.nome} (${cor.codigo})`, "catalogo")}
+                                            onClick={() => trackClique(categoriaCor(cor), `${cor.nome} (${cor.codigo})`, "catalogo")}
                                             href={waMessage(
-                                                `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
+                                                cor.vidro
+                                                    ? `Olá! Gostei do vidro ${cor.nome} do site de vocês e gostaria de um orçamento.`
+                                                    : `Olá! Gostei da cor ${cor.nome} (${cor.codigo}) do catálogo de vocês e gostaria de um orçamento.`,
                                                 whatsapp,
                                             )}
                                             target="_blank"
@@ -395,7 +426,7 @@ export default function CatalogoCores() {
                                             className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 px-6 py-3.5 text-sm font-medium text-graphite transition-colors hover:border-azul/50"
                                         >
                                             <WhatsAppIcon className="h-4 w-4" />
-                                            Pedir orçamento desta cor
+                                            Pedir orçamento {cor.vidro ? "deste vidro" : "desta cor"}
                                         </a>
                                     </div>
                                 </div>
@@ -439,7 +470,7 @@ export default function CatalogoCores() {
                                 <div>
                                     <div className="flex items-center gap-3 border-b border-slate-100 p-5">
                                         <img
-                                            src={`/cores/${cor.arq}`}
+                                            src={imgCor(cor)}
                                             alt={cor.nome}
                                             className="h-11 w-11 rounded-lg border border-slate-200 object-cover"
                                         />
@@ -451,7 +482,7 @@ export default function CatalogoCores() {
                                         </div>
                                     </div>
 
-                                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                                    <div className={`relative ${tipo === "vidro" ? "aspect-square" : "aspect-[4/3]"} w-full overflow-hidden bg-slate-100`}>
                                         {loading && (
                                             <div
                                                 data-testid="sim-loading"
@@ -488,7 +519,7 @@ export default function CatalogoCores() {
                                             Trocar cor
                                         </p>
                                         <div className="mt-3 flex gap-2 overflow-x-auto pb-2" data-testid="sim-color-rail">
-                                            {todasVisiveis.map((c) => (
+                                            {(tipo === "vidro" ? vidrosVisiveis : todasVisiveis).map((c) => (
                                                 <button
                                                     key={c.arq}
                                                     data-testid={`sim-cor-${slug(c.nome)}-${slug(c.codigo)}`}
@@ -501,7 +532,7 @@ export default function CatalogoCores() {
                                                             : "border-transparent hover:border-slate-300"
                                                     }`}
                                                 >
-                                                    <img src={`/cores/${c.arq}`} alt={c.nome} className="h-full w-full object-cover" />
+                                                    <img src={imgCor(c)} alt={c.nome} className="h-full w-full object-cover" />
                                                     {prontas.has(`${tipo}|${c.arq}`) && (
                                                         <span
                                                             data-testid={`sim-pronta-${slug(c.nome)}-${slug(c.codigo)}`}
@@ -519,16 +550,18 @@ export default function CatalogoCores() {
                                         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <button
                                                 data-testid="sim-back-tipo"
-                                                onClick={() => setStep("tipo")}
+                                                onClick={() => setStep(tipo === "vidro" ? "cor" : "tipo")}
                                                 className="text-left text-sm font-medium text-slate-500 transition-colors hover:text-azul"
                                             >
-                                                ← Trocar tipo de projeto
+                                                {tipo === "vidro" ? "← Voltar para o vidro" : "← Trocar tipo de projeto"}
                                             </button>
                                             <a
                                                 data-testid="sim-whatsapp"
                                                 onClick={() => trackClique("Simulador", `${tipoNome} - ${cor.nome} (${cor.codigo})`, "simulador")}
                                                 href={waMessage(
-                                                    `Olá! Fiz uma simulação no site: ${tipoNome} na cor ${cor.nome} (${cor.codigo}). Gostaria de um orçamento.`,
+                                                    cor.vidro
+                                                        ? `Olá! Fiz uma simulação no site: pele de vidro com o vidro ${cor.nome}. Gostaria de um orçamento.`
+                                                        : `Olá! Fiz uma simulação no site: ${tipoNome} na cor ${cor.nome} (${cor.codigo}). Gostaria de um orçamento.`,
                                                     whatsapp,
                                                 )}
                                                 target="_blank"
@@ -536,7 +569,7 @@ export default function CatalogoCores() {
                                                 className="inline-flex items-center justify-center gap-2 rounded-full bg-azul px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-azul-dark"
                                             >
                                                 <WhatsAppIcon className="h-4 w-4" />
-                                                Pedir orçamento nesta cor
+                                                Pedir orçamento {cor.vidro ? "com este vidro" : "nesta cor"}
                                             </a>
                                         </div>
                                     </div>

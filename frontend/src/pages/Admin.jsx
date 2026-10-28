@@ -4,6 +4,7 @@ import { authApi, withAuthRefresh } from "@/lib/auth";
 import ReviewsManager from "@/components/admin/ReviewsManager";
 import LeadsManager from "@/components/admin/LeadsManager";
 import AvisoEditor from "@/components/admin/AvisoEditor";
+import ManutencaoEditor from "@/components/admin/ManutencaoEditor";
 import RetornarHoje from "@/components/admin/RetornarHoje";
 import ProjectsManager from "@/components/admin/ProjectsManager";
 import CatalogManager from "@/components/admin/CatalogManager";
@@ -171,7 +172,7 @@ export default function Admin() {
         ...(hasPermission("projetos") ? [{ id: "projetos", label: "Obras e galeria", guide: "Edite as obras, envie e organize fotos e vídeos, confira a prévia e publique a galeria do site. O checklist ajuda a revisar o conteúdo antes de publicar." }] : []),
         ...(hasPermission("catalogo") ? [{ id: "catalogo", label: "Catálogo", guide: "Gerencie as cores do catálogo, oculte as indisponíveis e marque as mais pedidas. Revise a prévia antes de publicar as alterações." }] : []),
         ...(hasPermission("avaliacoes") ? [{ id: "avaliacoes", label: "Avaliações", guide: "Revise as avaliações recebidas, escolha quais ficam visíveis no site e organize os destaques. Ocultar preserva o registro no painel." }] : []),
-        ...(hasPermission("aviso") ? [{ id: "aviso", label: "Aviso do site", guide: "Crie avisos para os visitantes, escolha o tipo e o período de exibição. Desativar tira o aviso do ar sem apagar o texto salvo." }] : []),
+        ...(hasPermission("aviso") ? [{ id: "aviso", label: "Aviso e manutenção", guide: "Ative o modo manutenção para bloquear o site com um pop-up que não pode ser fechado. Abaixo, crie avisos para os visitantes, escolha o tipo e o período de exibição. Desativar tira o aviso do ar sem apagar o texto salvo." }] : []),
         { id: "configuracoes", label: hasPermission("contato") || hasPermission("usuarios") ? "Gerência" : "Minha senha", guide: [(hasPermission("contato") || hasPermission("aviso")) && "Contato: atualize telefone e horário em um só lugar.", hasPermission("usuarios") && "Acessos: gerencie usuários e permissões; o diretor também pode desativar contas e encerrar sessões.", "Senha: altere sua própria senha nesta área."].filter(Boolean).join(" ") },
         { id: "preferencias", label: "Configurações do painel", guide: "Personalize a aparência do painel com tema claro ou escuro e escolha uma visualização confortável ou compacta. As preferências ficam salvas para sua conta neste navegador." },
         ...(hasPermission("lixeira") ? [{ id: "lixeira", label: "Lixeira", guide: "Recupere obras, mídias e avaliações removidas. Confira o item antes de restaurá-lo para o site." }] : []),
@@ -503,7 +504,7 @@ export default function Admin() {
                                                 {i + 1}
                                             </span>
                                             <img
-                                                src={`/cores/${c.cor_arq}`}
+                                                src={`/${c.tipos?.vidro ? "vidros" : "cores"}/${c.cor_arq}`}
                                                 alt={c.cor_label}
                                                 loading="lazy"
                                                 className="h-10 w-10 shrink-0 rounded-lg border border-white/10 object-cover"
@@ -578,7 +579,7 @@ export default function Admin() {
                 {hasPermission("atendimentos") && secao === "atendimentos" && <LeadsManager />}
                 {hasPermission("projetos") && secao === "projetos" && <ProjectsManager />}
                 {hasPermission("catalogo") && secao === "catalogo" && <CatalogManager />}
-                {hasPermission("aviso") && secao === "aviso" && <AvisoEditor />}
+                {hasPermission("aviso") && secao === "aviso" && <div className="max-w-2xl space-y-6"><ManutencaoEditor /><AvisoEditor /></div>}
                 {hasPermission("avaliacoes") && secao === "avaliacoes" && <ReviewsManager />}
                 {secao === "configuracoes" && <div className="space-y-5">
                     <SiteSecurityManager usuario={usuario} />

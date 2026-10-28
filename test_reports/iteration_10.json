@@ -1,0 +1,24 @@
+{
+  "iteration": 10,
+  "scope": "Pré-geração autorizada de exatamente 38 imagens do simulador, restauração da capa original e reparo das rotas do painel de simulações",
+  "changes": [
+    "38 combinações novas geradas e salvas em /app/backend/simulacao_cache, sem exceder o limite autorizado",
+    "Cache do simulador passou de 21 para 59 arquivos",
+    "Rotas GET /api/admin/simulacoes e POST /api/admin/simulacoes/pre-gerar restauradas",
+    "Capa original /projects/sacada-envidracada.jpg restaurada como primeiro slide, com derivados WebP 768/1600",
+    "Botão de download mobile reaplicado após alteração paralela do Header",
+    "Teste de cache de manutenção atualizado para aceitar cabeçalho no-store, no-cache, must-revalidate"
+  ],
+  "verification": {
+    "generation_log": "GERADA 38/38; FIM geradas=38 erros=0 limite=38",
+    "cached_simulation_api": "POST /api/simular para cor pré-gerada retornou cached=true em 0,31s",
+    "cached_simulation_ui": "Interface abriu Cerejeira COD.02 em porta em 378ms usando /api/simular/img/porta_COD.02-CEREJEIRA.webp",
+    "admin_api": "GET /api/admin/simulacoes retornou 200 e arquivos_em_cache=59; POST pre-gerar top=1 retornou agendadas=0 sem gastar crédito",
+    "cover": "Capa original carregou em 375px, 768px e 1366px com WebP responsivo",
+    "mobile_download": "Botão de download apareceu ao lado do menu em 375px",
+    "pytest": "24/24 testes passaram",
+    "frontend_build": "yarn build compilou com sucesso"
+  },
+  "remaining_issues": [],
+  "retest_needed": false
+}

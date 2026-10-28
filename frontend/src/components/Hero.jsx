@@ -11,6 +11,7 @@ import { useSiteConfig } from "@/lib/SiteConfig";
 const EASE = [0.16, 1, 0.3, 1];
 
 const SLIDES = [
+    "/projects/sacada-envidracada.jpg",
     "/hero/loja-atual.jpg",
     "/hero/historia-2.jpg",
     "/hero/historia-3.jpg",

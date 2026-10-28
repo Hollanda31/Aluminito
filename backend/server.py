@@ -283,6 +283,45 @@ SIM_TIPOS = {
     },
 }
 SIM_CORES_DIR = "/app/frontend/public/cores"
+
+# Simulacao de cor de VIDRO (pele de vidro). Cores de referencia: linha Habitat by
+# Cebrace. A chave e o nome do arquivo da amostra (sem extensao) em
+# frontend/public/vidros/, o mesmo "arq" usado em frontend/src/lib/vidros.js.
+SIM_VIDROS_DIR = "/app/frontend/public/vidros"
+SIM_TIPOS["vidro"] = {
+    "base": "/app/frontend/public/projects/Pele-de-vidro-1.jpg",
+    "desc": (
+        "tall narrow glass curtain-wall window (pele de vidro) with a thin black "
+        "aluminum frame, set in a white stone-clad wall"
+    ),
+    "dir": SIM_VIDROS_DIR,
+}
+SIM_VIDROS = {
+    "habitat-neutro-incolor": (
+        "almost colorless, highly transparent neutral glass with only a very "
+        "faint cool-green tint, soft sky reflections, interior clearly visible"
+    ),
+    "habitat-neutro-cinza-claro": (
+        "light grey tinted neutral glass, slightly smoky but still very "
+        "transparent, soft sky reflections"
+    ),
+    "habitat-neutro-cinza": (
+        "medium grey tinted neutral glass, smoky and darker than clear glass "
+        "but still transparent, soft sky reflections"
+    ),
+    "habitat-refletivo-cinza": (
+        "silver-grey mirror-like reflective glass with a strong, clear "
+        "reflection of the sky and surroundings and little visibility inside"
+    ),
+    "habitat-refletivo-champanhe": (
+        "champagne / golden-bronze mirror-like reflective glass with a strong "
+        "reflection of the sky and surroundings and little visibility inside"
+    ),
+    "habitat-refletivo-esmeralda": (
+        "emerald green mirror-like reflective glass with a strong reflection "
+        "of the sky and surroundings and little visibility inside"
+    ),
+}
 SIM_CACHE_DIR = Path("/app/backend/simulacao_cache")
 SIM_CACHE_DIR.mkdir(exist_ok=True)
 SIM_CACHE_EXTS = (".webp", ".png")
@@ -360,6 +399,22 @@ def _new_chat():
     return chat
 
 
+def _sim_prompt_vidro(req: SimulacaoRequest) -> str:
+    chave = req.cor_arq.rsplit(".", 1)[0]
+    desc = SIM_VIDROS.get(chave, "tinted architectural glass")
+    return (
+        f"The first image is a photo of a {SIM_TIPOS['vidro']['desc']}. "
+        "The second image is a color swatch of an architectural glass tint. "
+        f"Change ONLY the glass panes of the tall glazed window so they look "
+        f"like {desc} (glass name: {req.cor_nome}). "
+        "Keep the black aluminum frame and dividers, the white stone wall, the "
+        "grey wall, the plant, the sky, the blurred side bars, the lighting and "
+        "the framing completely unchanged. The glass must keep realistic "
+        "reflections appropriate to this glass type. Photorealistic result, "
+        "high quality, same composition and aspect ratio as the first image."
+    )
+
+
 async def _sim_gerar(req: SimulacaoRequest, cor_path: str, stem: str) -> Path:
     base_path = SIM_TIPOS[req.tipo]["base"]
 
@@ -384,22 +439,25 @@ async def _sim_gerar(req: SimulacaoRequest, cor_path: str, stem: str) -> Path:
             with open(base_path, "wb") as f:
                 f.write(base64.b64decode(imgs0[0]["data"]))
 
-        acab_txt = (
-            "wood grain finish texture"
-            if req.acabamento == "madeira"
-            else "solid painted finish"
-        )
-        prompt = (
-            f"The first image is a photo of an "
-            f"{SIM_TIPOS[req.tipo]['desc']}. "
-            "The second image is a color swatch of an aluminum profile finish. "
-            f"Repaint ONLY the aluminum frame, profiles, slats and metal parts "
-            f"to exactly match the swatch ({acab_txt}, finish name: "
-            f"{req.cor_nome}). "
-            "Keep the glass, the background, the lighting, the reflections "
-            "and every other element completely unchanged. Photorealistic "
-            "result, high quality."
-        )
+        if req.tipo == "vidro":
+            prompt = _sim_prompt_vidro(req)
+        else:
+            acab_txt = (
+                "wood grain finish texture"
+                if req.acabamento == "madeira"
+                else "solid painted finish"
+            )
+            prompt = (
+                f"The first image is a photo of an "
+                f"{SIM_TIPOS[req.tipo]['desc']}. "
+                "The second image is a color swatch of an aluminum profile finish. "
+                f"Repaint ONLY the aluminum frame, profiles, slats and metal parts "
+                f"to exactly match the swatch ({acab_txt}, finish name: "
+                f"{req.cor_nome}). "
+                "Keep the glass, the background, the lighting, the reflections "
+                "and every other element completely unchanged. Photorealistic "
+                "result, high quality."
+            )
 
         chat = _new_chat()
         _, images = await chat.send_message_multimodal_response(
@@ -456,7 +514,8 @@ def _sim_validar(req: SimulacaoRequest):
     cor_arq = os.path.basename(req.cor_arq)
     if not re.fullmatch(r"[\w.\-]+", cor_arq):
         raise HTTPException(status_code=400, detail="Arquivo de cor invalido")
-    cor_path = os.path.join(SIM_CORES_DIR, cor_arq)
+    pasta = SIM_TIPOS[req.tipo].get("dir", SIM_CORES_DIR)
+    cor_path = os.path.join(pasta, cor_arq)
     if not os.path.isfile(cor_path):
         raise HTTPException(status_code=404, detail="Cor nao encontrada")
     return cor_arq, cor_path
@@ -510,7 +569,7 @@ async def simular_disponiveis(tipo: str):
     if tipo not in SIM_TIPOS:
         raise HTTPException(status_code=400, detail="Tipo de projeto invalido")
     try:
-        arquivos = sorted(os.listdir(SIM_CORES_DIR))
+        arquivos = sorted(os.listdir(SIM_TIPOS[tipo].get("dir", SIM_CORES_DIR)))
     except OSError:
         return {"cores": []}
     return {
@@ -522,7 +581,9 @@ async def simular_disponiveis(tipo: str):
 
 class PrewarmRequest(BaseModel):
     top: int = Field(default=6, ge=1, le=20)
-    tipos: List[str] = Field(default_factory=lambda: list(SIM_TIPOS))
+    tipos: List[str] = Field(
+        default_factory=lambda: [t for t in SIM_TIPOS if t != "vidro"]
+    )
 
 
 async def _sim_prewarm_worker(combos: List[SimulacaoRequest]) -> None:
@@ -542,10 +603,12 @@ async def simular_prewarm(input: PrewarmRequest, request: Request):
     estao em cache. Cada imagem nova consome creditos da IA."""
     validate_origin(request)
     await require_permission(request, "relatorios")
-    tipos = [t for t in input.tipos if t in SIM_TIPOS]
+    # o pre-aquecimento e so para as cores de aluminio (vidro tem poucas opcoes)
+    tipos = [t for t in input.tipos if t in SIM_TIPOS and t != "vidro"]
     top = (
         await db.simulation_events.aggregate(
             [
+                {"$match": {"tipo": {"$ne": "vidro"}}},
                 {
                     "$group": {
                         "_id": "$cor_arq",
@@ -561,10 +624,12 @@ async def simular_prewarm(input: PrewarmRequest, request: Request):
         .to_list(input.top)
     )
     combos = []
+    cores_validas = 0
     for c in top:
         arq = os.path.basename(c["_id"] or "")
         if not arq or not os.path.isfile(os.path.join(SIM_CORES_DIR, arq)):
             continue
+        cores_validas += 1
         for t in tipos:
             if _sim_cache_find(_sim_stem(t, arq)) is None:
                 combos.append(
@@ -575,11 +640,92 @@ async def simular_prewarm(input: PrewarmRequest, request: Request):
                         acabamento=c.get("acabamento") or "pintura",
                     )
                 )
+    ja_em_cache = cores_validas * len(tipos) - len(combos)
     if combos:
         task = asyncio.create_task(_sim_prewarm_worker(combos))
         _SIM_BG_TASKS.add(task)
         task.add_done_callback(_SIM_BG_TASKS.discard)
-    return {"agendadas": len(combos)}
+    return {"agendadas": len(combos), "ja_em_cache": ja_em_cache}
+
+
+@api_router.post("/admin/simulacoes/pre-gerar")
+async def simulacoes_pre_gerar(input: PrewarmRequest, request: Request):
+    return await simular_prewarm(input, request)
+
+
+@api_router.get("/admin/simulacoes")
+async def admin_simulacoes(request: Request, dias: int = 30):
+    await require_permission(request, "relatorios")
+    dias = min(max(dias, 1), 365)
+    inicio = datetime.now(timezone.utc) - timedelta(days=dias)
+    eventos = (
+        await db.simulation_events.find(
+            {"timestamp": {"$gte": inicio.isoformat()}}, {"_id": 0}
+        )
+        .to_list(10000)
+    )
+    tipos = [t for t in SIM_TIPOS if t != "vidro"]
+    por_tipo = {}
+    por_cor = {}
+    respondidas_cache = 0
+
+    for ev in eventos:
+        tipo = ev.get("tipo") or "outros"
+        arq = ev.get("cor_arq") or ""
+        por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
+        if ev.get("cached"):
+            respondidas_cache += 1
+        if arq:
+            cor = por_cor.setdefault(
+                arq,
+                {
+                    "arq": arq,
+                    "nome": ev.get("cor_nome") or _cor_label(arq),
+                    "codigo": (
+                        re.search(r"COD\.\d+", arq).group(0)
+                        if re.search(r"COD\.\d+", arq)
+                        else None
+                    ),
+                    "total": 0,
+                },
+            )
+            cor["total"] += 1
+
+    cores = []
+    for cor in por_cor.values():
+        cor["tipos_em_cache"] = sum(
+            1
+            for tipo in tipos
+            if _sim_cache_find(_sim_stem(tipo, cor["arq"])) is not None
+        )
+        cores.append(cor)
+
+    total = len(eventos)
+    return {
+        "dias": dias,
+        "total": total,
+        "pct_cache": round((respondidas_cache / total) * 100) if total else 0,
+        "media_geracao_s": None,
+        "arquivos_em_cache": len(
+            [
+                p
+                for p in SIM_CACHE_DIR.iterdir()
+                if p.suffix.lower() in SIM_CACHE_EXTS
+            ]
+        ),
+        "tipos_total": len(tipos),
+        "cores": sorted(cores, key=lambda c: -c["total"])[:20],
+        "por_tipo": sorted(
+            [{"tipo": k, "total": v} for k, v in por_tipo.items()],
+            key=lambda t: -t["total"],
+        ),
+        "pregeracao": {
+            "rodando": bool(_SIM_BG_TASKS),
+            "total": 0,
+            "feitas": 0,
+            "erros": 0,
+        },
+    }
 
 
 # --- Rastreamento de atendimentos (cliques para o WhatsApp) ---
@@ -991,6 +1137,69 @@ async def admin_salvar_aviso(input: AvisoIn, request: Request):
     await db.site_settings.update_one({"key": "aviso"}, {"$set": doc}, upsert=True)
     await log_admin_action(actor, "Aviso do site atualizado", {"ativo": input.ativo})
     return doc
+
+
+# --- Modo manutencao: pop-up que bloqueia o site inteiro ate ser desativado ---
+MANUTENCAO_PADRAO = {
+    "ativo": False,
+    "titulo": "Site em manutenção",
+    "mensagem": "Estamos fazendo melhorias no site para atender você ainda melhor. Voltamos em breve!",
+    "mostrar_whatsapp": True,
+}
+
+
+class ManutencaoIn(BaseModel):
+    ativo: bool = False
+    titulo: str = Field(default=MANUTENCAO_PADRAO["titulo"], max_length=80)
+    mensagem: str = Field(default=MANUTENCAO_PADRAO["mensagem"], max_length=400)
+    mostrar_whatsapp: bool = True
+
+
+async def _manutencao_doc() -> dict:
+    doc = await db.site_settings.find_one({"key": "manutencao"}, {"_id": 0}) or {}
+    return {**MANUTENCAO_PADRAO, **{k: doc[k] for k in MANUTENCAO_PADRAO if k in doc}}
+
+
+@api_router.get("/manutencao")
+async def manutencao_publico(response: Response):
+    # sem cache: ao ativar/desativar no painel, o efeito precisa ser imediato
+    response.headers["Cache-Control"] = "no-store"
+    doc = await _manutencao_doc()
+    if not doc["ativo"]:
+        return {"ativo": False}
+    return {
+        "ativo": True,
+        "titulo": (doc["titulo"] or "").strip() or MANUTENCAO_PADRAO["titulo"],
+        "mensagem": (doc["mensagem"] or "").strip() or MANUTENCAO_PADRAO["mensagem"],
+        "mostrar_whatsapp": bool(doc["mostrar_whatsapp"]),
+    }
+
+
+@api_router.get("/admin/manutencao")
+async def admin_manutencao(request: Request):
+    await require_permission(request, "aviso")
+    return await _manutencao_doc()
+
+
+@api_router.put("/admin/manutencao")
+async def admin_salvar_manutencao(input: ManutencaoIn, request: Request):
+    validate_origin(request)
+    actor = await require_permission(request, "aviso")
+    doc = {
+        "key": "manutencao",
+        "ativo": input.ativo,
+        "titulo": input.titulo.strip() or MANUTENCAO_PADRAO["titulo"],
+        "mensagem": input.mensagem.strip() or MANUTENCAO_PADRAO["mensagem"],
+        "mostrar_whatsapp": input.mostrar_whatsapp,
+        "atualizado_em": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.site_settings.update_one({"key": "manutencao"}, {"$set": doc}, upsert=True)
+    await log_admin_action(
+        actor,
+        "Modo manutenção ativado" if input.ativo else "Modo manutenção desativado",
+        {"ativo": input.ativo},
+    )
+    return {k: doc[k] for k in MANUTENCAO_PADRAO}
 
 
 SITE_DEFAULTS = {

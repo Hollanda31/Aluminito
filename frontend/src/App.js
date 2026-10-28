@@ -15,6 +15,7 @@ import Contato from "@/components/Contato";
 import OrcamentoModal from "@/components/OrcamentoModal";
 import Footer from "@/components/Footer";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import ManutencaoPopup from "@/components/ManutencaoPopup";
 import AdminLogin from "@/pages/AdminLogin";
 import Admin from "@/pages/Admin";
 import { SiteConfigProvider } from "@/lib/SiteConfig";
@@ -58,6 +59,7 @@ function Landing() {
             <FloatingWhatsApp />
             <OrcamentoModal />
             <div className="grain" aria-hidden="true" />
+            <ManutencaoPopup />
         </div>
     );
 }

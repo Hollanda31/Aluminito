@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
+import InstallAppButton from "@/components/InstallAppButton";
 import { scrollToId } from "@/lib/scroll";
 import { abrirOrcamento } from "@/lib/orcamento";
 
@@ -60,22 +61,28 @@ export default function Header() {
                         </button>
                     ))}
                 </nav>
-                <button
-                    type="button"
-                    data-testid="header-cta-orcamento"
-                    onClick={irParaFormulario}
-                    className="hidden rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark lg:block"
-                >
-                    Solicitar Orçamento
-                </button>
-                <button
-                    data-testid="header-menu-toggle"
-                    className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white lg:hidden"
-                    onClick={() => setOpen((v) => !v)}
-                    aria-label={open ? "Fechar menu" : "Abrir menu"}
-                >
-                    {open ? <X size={20} /> : <Menu size={20} />}
-                </button>
+                <div className="hidden items-center gap-3 lg:flex">
+                    <InstallAppButton variant="header" />
+                    <button
+                        type="button"
+                        data-testid="header-cta-orcamento"
+                        onClick={irParaFormulario}
+                        className="rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark"
+                    >
+                        Solicitar Orçamento
+                    </button>
+                </div>
+                <div className="flex items-center gap-2 lg:hidden">
+                    <InstallAppButton variant="header-mobile" />
+                    <button
+                        data-testid="header-menu-toggle"
+                        className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white"
+                        onClick={() => setOpen((v) => !v)}
+                        aria-label={open ? "Fechar menu" : "Abrir menu"}
+                    >
+                        {open ? <X size={20} /> : <Menu size={20} />}
+                    </button>
+                </div>
             </div>
 
             <AnimatePresence>
@@ -98,6 +105,9 @@ export default function Header() {
                                     {l.label}
                                 </button>
                             ))}
+                            <div className="mt-2">
+                                <InstallAppButton variant="mobile" onDone={() => setOpen(false)} />
+                            </div>
                             <button
                                 type="button"
                                 data-testid="mobile-cta-orcamento"

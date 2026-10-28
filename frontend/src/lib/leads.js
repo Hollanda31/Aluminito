@@ -25,6 +25,7 @@ export const TIPOS_SIM = {
     janela: "Janela",
     persiana: "Persiana",
     outros: "Outros",
+    vidro: "Pele de vidro",
 };
 
 // Baixa o CSV de atendimentos (abre direto no Excel, com acentos e ";").
