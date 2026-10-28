@@ -12,6 +12,7 @@ import CatalogoCores from "@/components/CatalogoCores";
 import Projetos from "@/components/Projetos";
 import Depoimentos from "@/components/Depoimentos";
 import Contato from "@/components/Contato";
+import OrcamentoModal from "@/components/OrcamentoModal";
 import Footer from "@/components/Footer";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import AdminLogin from "@/pages/AdminLogin";
@@ -55,6 +56,7 @@ function Landing() {
             </main>
             <Footer />
             <FloatingWhatsApp />
+            <OrcamentoModal />
             <div className="grain" aria-hidden="true" />
         </div>
     );

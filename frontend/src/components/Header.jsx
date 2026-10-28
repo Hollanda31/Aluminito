@@ -3,9 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import Logo from "@/components/Logo";
 import { scrollToId } from "@/lib/scroll";
-import { ORCAMENTO_MESSAGE, waMessage } from "@/lib/site";
-import { trackClique } from "@/lib/track";
-import { useSiteConfig } from "@/lib/SiteConfig";
+import { abrirOrcamento } from "@/lib/orcamento";
 
 const LINKS = [
     { id: "inicio", label: "Início" },
@@ -18,7 +16,6 @@ const LINKS = [
 ];
 
 export default function Header() {
-    const { whatsapp } = useSiteConfig();
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
 
@@ -32,6 +29,12 @@ export default function Header() {
     const go = (id) => {
         setOpen(false);
         scrollToId(id);
+    };
+
+    // Botão "Solicitar Orçamento": abre o formulário em pop-up, em qualquer ponto do site
+    const irParaFormulario = () => {
+        setOpen(false);
+        abrirOrcamento();
     };
 
     return (
@@ -57,16 +60,14 @@ export default function Header() {
                         </button>
                     ))}
                 </nav>
-                <a
+                <button
+                    type="button"
                     data-testid="header-cta-orcamento"
-                        onClick={() => trackClique("Geral", "Menu - Solicitar Orçamento", "header")}
-                    href={waMessage(ORCAMENTO_MESSAGE, whatsapp)}
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={irParaFormulario}
                     className="hidden rounded-full bg-azul px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-azul-dark lg:block"
                 >
                     Solicitar Orçamento
-                </a>
+                </button>
                 <button
                     data-testid="header-menu-toggle"
                     className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 text-white lg:hidden"
@@ -97,16 +98,14 @@ export default function Header() {
                                     {l.label}
                                 </button>
                             ))}
-                            <a
+                            <button
+                                type="button"
                                 data-testid="mobile-cta-orcamento"
-                                onClick={() => trackClique("Geral", "Menu mobile - Solicitar Orçamento", "header")}
-                                href={waMessage(ORCAMENTO_MESSAGE, whatsapp)}
-                                target="_blank"
-                                rel="noreferrer"
+                                onClick={irParaFormulario}
                                 className="mt-2 rounded-xl bg-azul px-5 py-3.5 text-center text-sm font-semibold text-white"
                             >
                                 Solicitar Orçamento
-                            </a>
+                            </button>
                         </nav>
                     </motion.div>
                 )}

@@ -12,6 +12,13 @@ const PERIODOS = [
 ];
 
 const DETALHES = [
+    ["contato", "Contato"],
+    ["documento", "CNPJ/CPF"],
+    ["local", "Local de instalação"],
+    ["projeto", "Possui projeto"],
+    ["itens", "Itens a orçar"],
+    ["cor_aluminio", "Cor do alumínio / material"],
+    ["vidro", "Vidro (cor, espessura e tipo)"],
     ["situacao", "Situação da obra"],
     ["prazo", "Prazo"],
     ["cor", "Cor desejada"],

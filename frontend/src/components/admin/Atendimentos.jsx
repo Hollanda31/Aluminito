@@ -37,6 +37,13 @@ const waCliente = (tel) => {
 };
 
 const DETALHES = [
+    ["contato", "Contato"],
+    ["documento", "CNPJ/CPF"],
+    ["local", "Local de instalação"],
+    ["projeto", "Possui projeto"],
+    ["itens", "Itens a orçar"],
+    ["cor_aluminio", "Cor do alumínio / material"],
+    ["vidro", "Vidro (cor, espessura e tipo)"],
     ["cidade", "Cidade"],
     ["tipo", "Tipo de projeto"],
     ["obra", "Situação da obra"],

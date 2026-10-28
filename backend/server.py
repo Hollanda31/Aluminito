@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Literal, Optional
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -588,7 +589,15 @@ LeadPriority = Literal["baixa", "media", "alta"]
 LeadLossReason = Literal["preco", "prazo", "concorrente", "desistiu", "sem_resposta", "outro"]
 DADOS_CAMPOS = (
     "nome",
+    "contato",
+    "documento",
     "telefone",
+    "local",
+    "projeto",
+    "itens",
+    "cor_aluminio",
+    "vidro",
+    # campos do formulario antigo (mantidos para os atendimentos ja registrados)
     "cidade",
     "tipo",
     "situacao",
@@ -597,6 +606,7 @@ DADOS_CAMPOS = (
     "prazo",
     "obs",
 )
+DADOS_LIMITE = {"itens": 1500}  # demais campos: 400 caracteres
 BR_TZ = ZoneInfo("America/Sao_Paulo")
 
 
@@ -614,7 +624,7 @@ class TrackEvent(BaseModel):
         for chave in DADOS_CAMPOS:
             val = v.get(chave)
             if isinstance(val, str) and val.strip():
-                limpo[chave] = val.strip()[:400]
+                limpo[chave] = val.strip()[: DADOS_LIMITE.get(chave, 400)]
         return limpo
 
 
@@ -698,6 +708,8 @@ def _lead_filtro(periodo: str = "mes", status: str = "", q: str = "") -> dict:
                     {"dados.nome": rx},
                     {"dados.telefone": rx},
                     {"dados.cidade": rx},
+                    {"dados.local": rx},
+                    {"dados.contato": rx},
                 ]
             }
         )
@@ -768,7 +780,14 @@ async def admin_leads_export(
             "Item",
             "Origem",
             "Nome",
+            "Contato",
+            "CNPJ/CPF",
             "Telefone",
+            "Local de instalação",
+            "Possui projeto",
+            "Itens a orçar",
+            "Cor do alumínio / material",
+            "Vidro (cor, espessura e tipo)",
             "Cidade",
             "Tipo de projeto",
             "Situação da obra",
@@ -795,7 +814,14 @@ async def admin_leads_export(
             ev.get("item"),
             ev.get("origem"),
             d.get("nome"),
+            d.get("contato"),
+            d.get("documento"),
             d.get("telefone"),
+            d.get("local"),
+            d.get("projeto"),
+            d.get("itens"),
+            d.get("cor_aluminio"),
+            d.get("vidro"),
             d.get("cidade"),
             d.get("tipo"),
             d.get("situacao"),
@@ -1010,6 +1036,31 @@ async def public_projects():
         return bool(item.get("featured")) and inicio <= hoje <= fim
     items = sorted(items, key=lambda item: (not destaque_ativo(item), item.get("order", 0)))
     return {"items": items, "configurado": doc is not None}
+
+
+@api_router.get("/imagens-sobre")
+async def public_about_images():
+    images_dir = ROOT_DIR.parent / "frontend" / "public" / "imagens"
+    if not images_dir.is_dir():
+        return {"items": []}
+
+    extensions = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+    photos = sorted(
+        (
+            path for path in images_dir.iterdir()
+            if path.is_file() and not path.is_symlink() and path.suffix.lower() in extensions
+        ),
+        key=lambda path: path.name.casefold(),
+    )
+    return {
+        "items": [
+            {
+                "src": f"/imagens/{quote(path.name)}",
+                "alt": f"Foto da Aluminito: {path.stem.replace('-', ' ').replace('_', ' ')}",
+            }
+            for path in photos
+        ]
+    }
 
 
 class ProjectsIn(BaseModel):
