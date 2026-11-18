@@ -3,15 +3,16 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
+import { registerServiceWorker } from "@/lib/pwa";
 
-if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined" && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .getRegistrations()
     .then((registrations) => registrations.forEach((registration) => registration.unregister()))
     .catch(() => {});
 }
 
-if (typeof window !== "undefined" && "caches" in window) {
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined" && "caches" in window) {
   window.caches.delete("aluminito-v1").catch(() => {});
 }
 
@@ -32,3 +33,5 @@ root.render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+registerServiceWorker();

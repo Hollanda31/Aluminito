@@ -74,8 +74,8 @@ module.exports = {
         }
       },
       fontFamily: {
-        display: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
-        body: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
+        display: ['Outfit', 'sans-serif'],
+        body: ['"Plus Jakarta Sans"', 'sans-serif']
       },
       keyframes: {
         'accordion-down': {

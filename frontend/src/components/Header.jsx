@@ -8,6 +8,7 @@ import { abrirOrcamento } from "@/lib/orcamento";
 const LINKS = [
     { id: "inicio", label: "Início" },
     { id: "sobre", label: "Sobre Nós" },
+    { id: "produtos", label: "Produtos & Serviços" },
     { id: "cores", label: "Cores" },
     { id: "projetos", label: "Projetos" },
     { id: "depoimentos", label: "Avaliações" },
