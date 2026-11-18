@@ -29,7 +29,9 @@ function makeDevServerV5Compatible(devServerConfig) {
         : "http";
   compatibleConfig.headers = {
     ...compatibleConfig.headers,
-    "Cross-Origin-Resource-Policy": "same-origin",
+    // The Emergent preview can embed this dev server from a different origin.
+    // Allow its script and style resources to load inside that preview frame.
+    "Cross-Origin-Resource-Policy": "cross-origin",
   };
 
   if (onBeforeSetupMiddleware || setupMiddlewares) {

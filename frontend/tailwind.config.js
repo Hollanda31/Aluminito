@@ -55,19 +55,27 @@ module.exports = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))'
         },
-        graphite: '#000000',
-        graphite2: '#111111',
-        silver: '#808080',
-        silverlight: '#D4D4D4',
-        mist: '#F5F5F5',
+        graphite: '#0d0d0d',
+        graphite2: '#171717',
+        onix: '#0d0d0d',
+        metallic: '#777777',
+        carmim: {
+          DEFAULT: '#DC2626',
+          dark: '#B91C1C'
+        },
+        alabaster: '#F8F8F6',
+        champagne: '#C8B57A',
+        silver: '#A1A1AA',
+        silverlight: '#E4E4E7',
+        mist: '#111111',
         azul: {
-          DEFAULT: '#FF0000',
-          dark: '#CC0000'
+          DEFAULT: '#DC2626',
+          dark: '#B91C1C'
         }
       },
       fontFamily: {
-        display: ['Outfit', 'sans-serif'],
-        body: ['"Plus Jakarta Sans"', 'sans-serif']
+        display: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+        body: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
       },
       keyframes: {
         'accordion-down': {

@@ -26,7 +26,7 @@ from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, UploadFile, File
 from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict
 from pymongo import ReturnDocument
 from starlette.middleware.cors import CORSMiddleware
 
@@ -69,18 +69,27 @@ class ReviewCreate(BaseModel):
     place: str = Field(default="", max_length=80)
     rating: int = Field(ge=1, le=5)
     text: str = Field(min_length=10, max_length=1000)
+    publish_consent: bool
 
 
 class Review(ReviewCreate):
     id: str
     timestamp: str
-    status: Literal["visible", "hidden"] = "visible"
+    publish_consent: bool = False
+    status: Literal["pending", "visible", "hidden"] = "pending"
+    customer_verified: bool = False
+    customer_verified_at: str | None = None
+    customer_verified_by: str | None = None
     featured: bool = False
     featured_at: str | None = None
 
 
 class ReviewStatusUpdate(BaseModel):
-    status: Literal["visible", "hidden"]
+    status: Literal["pending", "visible", "hidden"]
+
+
+class ReviewVerificationUpdate(BaseModel):
+    customer_verified: bool
 
 
 class ReviewFeaturedUpdate(BaseModel):
@@ -131,10 +140,15 @@ async def get_status_checks():
     status_code=201,
 )
 async def create_review(input: ReviewCreate):
+    if not input.publish_consent:
+        raise HTTPException(status_code=422, detail="É necessário autorizar a publicação da avaliação")
     review = {
         "id": str(uuid.uuid4()),
         **input.model_dump(),
-        "status": "visible",
+        "status": "pending",
+        "customer_verified": False,
+        "customer_verified_at": None,
+        "customer_verified_by": None,
         "featured": False,
         "featured_at": None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -148,7 +162,7 @@ async def create_review(input: ReviewCreate):
 async def get_reviews():
     reviews = (
         await db.reviews.find(
-            {"status": {"$ne": "hidden"}},
+            {"status": "visible", "customer_verified": True},
             {"_id": 0},
         )
         .sort([
@@ -186,6 +200,12 @@ async def admin_update_review_status(
     request: Request,
 ):
     actor = await require_permission(request, "avaliacoes")
+    if input.status == "visible":
+        review = await db.reviews.find_one({"id": review_id}, {"_id": 0, "customer_verified": 1})
+        if not review:
+            raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+        if not review.get("customer_verified", False):
+            raise HTTPException(status_code=409, detail="Confirme que a avaliação é de um cliente antes de publicá-la")
     result = await db.reviews.find_one_and_update(
         {"id": review_id},
         {"$set": {"status": input.status}},
@@ -202,6 +222,38 @@ async def admin_update_review_status(
 
 
 @api_router.patch(
+    "/admin/reviews/{review_id}/verification",
+    response_model=Review,
+)
+async def admin_update_review_verification(
+    review_id: str,
+    input: ReviewVerificationUpdate,
+    request: Request,
+):
+    actor = await require_permission(request, "avaliacoes")
+    current = await db.reviews.find_one({"id": review_id}, {"_id": 0, "status": 1, "publish_consent": 1})
+    if not current:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+    if input.customer_verified and current.get("publish_consent") is not True:
+        raise HTTPException(status_code=409, detail="A avaliação não tem autorização registrada para publicação")
+    fields = {"customer_verified": input.customer_verified}
+    fields["customer_verified_at"] = datetime.now(timezone.utc).isoformat() if input.customer_verified else None
+    fields["customer_verified_by"] = actor.get("email") if input.customer_verified else None
+    if current.get("status") != "hidden":
+        fields["status"] = "pending"
+    result = await db.reviews.find_one_and_update(
+        {"id": review_id},
+        {"$set": fields},
+        return_document=ReturnDocument.AFTER,
+        projection={"_id": 0},
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+    await log_admin_action(actor, "Confirmação de cliente alterada", {"id": review_id, "confirmado": input.customer_verified})
+    return result
+
+
+@api_router.patch(
     "/admin/reviews/{review_id}/featured",
     response_model=Review,
 )
@@ -211,6 +263,13 @@ async def admin_update_review_featured(
     request: Request,
 ):
     actor = await require_permission(request, "avaliacoes")
+    if input.featured:
+        review = await db.reviews.find_one(
+            {"id": review_id, "status": "visible", "customer_verified": True},
+            {"_id": 0, "id": 1},
+        )
+        if not review:
+            raise HTTPException(status_code=409, detail="Publique e confirme a avaliação antes de destacá-la")
     result = await db.reviews.find_one_and_update(
         {"id": review_id},
         {
@@ -733,26 +792,6 @@ LEAD_STATUS = ["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
 LeadStatus = Literal["novo", "em_conversa", "orcamento_enviado", "fechado", "perdido"]
 LeadPriority = Literal["baixa", "media", "alta"]
 LeadLossReason = Literal["preco", "prazo", "concorrente", "desistiu", "sem_resposta", "outro"]
-DADOS_CAMPOS = (
-    "nome",
-    "contato",
-    "documento",
-    "telefone",
-    "local",
-    "projeto",
-    "itens",
-    "cor_aluminio",
-    "vidro",
-    # campos do formulario antigo (mantidos para os atendimentos ja registrados)
-    "cidade",
-    "tipo",
-    "situacao",
-    "medidas",
-    "cor",
-    "prazo",
-    "obs",
-)
-DADOS_LIMITE = {"itens": 1500}  # demais campos: 400 caracteres
 BR_TZ = ZoneInfo("America/Sao_Paulo")
 
 
@@ -760,18 +799,6 @@ class TrackEvent(BaseModel):
     grupo: str = Field(min_length=1, max_length=80)
     item: str = Field(min_length=1, max_length=200)
     origem: str = Field(default="", max_length=80)
-    # Dados do formulario de orcamento (so os campos conhecidos sao aceitos)
-    dados: dict = Field(default_factory=dict)
-
-    @field_validator("dados")
-    @classmethod
-    def _limpa_dados(cls, v):
-        limpo = {}
-        for chave in DADOS_CAMPOS:
-            val = v.get(chave)
-            if isinstance(val, str) and val.strip():
-                limpo[chave] = val.strip()[: DADOS_LIMITE.get(chave, 400)]
-        return limpo
 
 
 class ProjectMetricInput(BaseModel):
@@ -782,14 +809,14 @@ class ProjectMetricInput(BaseModel):
 
 @api_router.post("/track", status_code=201)
 async def track_event(input: TrackEvent):
+    now = datetime.now(timezone.utc)
     doc = {
         "id": str(uuid.uuid4()),
         **input.model_dump(),
         "status": "novo",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now.isoformat(),
+        "expires_at": now + timedelta(days=90),
     }
-    if not doc["dados"]:
-        doc.pop("dados")
     await db.lead_events.insert_one(doc)
     return {"ok": True}
 
@@ -2098,6 +2125,24 @@ async def seed_admin():
     try:  # indices de desempenho: nunca devem derrubar a inicializacao
         await db.lead_events.create_index("timestamp")
         await db.lead_events.create_index("id")
+        # Aplica o prazo de guarda a eventos antigos e aos novos registros de métricas.
+        cursor = db.lead_events.find(
+            {"expires_at": {"$exists": False}},
+            {"_id": 1, "timestamp": 1},
+        ).batch_size(500)
+        async for event in cursor:
+            try:
+                created_at = datetime.fromisoformat(str(event.get("timestamp", "")).replace("Z", "+00:00"))
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                expires_at = created_at + timedelta(days=90)
+            except (TypeError, ValueError):
+                expires_at = datetime.now(timezone.utc)
+            await db.lead_events.update_one(
+                {"_id": event["_id"]},
+                {"$set": {"expires_at": expires_at}},
+            )
+        await db.lead_events.create_index("expires_at", expireAfterSeconds=0)
         await db.simulation_events.create_index("timestamp")
         await db.project_metrics.create_index("day")
     except Exception:
